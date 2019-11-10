@@ -1,0 +1,26 @@
+{
+  "name": "petfeeder-backend",
+  "version": "0.0.1",
+  "description": "API server for the smart pet feeder",
+  "main": "index.js",
+  "scripts": {
+    "start": "export NODE_ENV=production && node index.js",
+    "dev": "export NODE_ENV=development && node index.js"
+  },
+  "keywords": [
+    "IoT",
+    "pet",
+    "feeder",
+    "petwant",
+    "PF-103",
+    "hack",
+    "alternative",
+    "firmware"
+  ],
+  "author": "Yurii Zubkov",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "petwant-device": "^1.0.3",
+    "socket.io": "^2.3.0"
+  }
+}
