@@ -35,9 +35,27 @@ class UnknownMessageException extends Error {
   }
 }
 
+class InterfaceNotImplementedException extends Error {
+  constructor(message) {
+    super(message)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor)
+  }
+}
+
+class InvalidRPCResourceException extends Error {
+  constructor(resource) {
+    super('Invalid RPC resource to execute: ' + resource)
+    this.name = this.constructor.name
+    Error.captureStackTrace(this, this.constructor)
+  }
+}
+
 module.exports = {
   GPIOSetupNotCompletedException,
   UARTNotConnectedException,
   InvalidParameterException,
   UnknownMessageException,
+  InterfaceNotImplementedException,
+  InvalidRPCResourceException,
 }
