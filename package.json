@@ -20,6 +20,7 @@
   "author": "Yurii Zubkov",
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "eventemitter2": "^5.0.1",
     "petwant-device": "^1.0.3",
     "socket.io": "^2.3.0"
   }

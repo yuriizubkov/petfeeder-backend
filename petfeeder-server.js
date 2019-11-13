@@ -1,16 +1,23 @@
+const EventEmitter2 = require('eventemitter2')
 const { InvalidRPCResourceException } = require('./error-types')
 
-class PetfeederServer {
+class PetfeederServer extends EventEmitter2 {
   /**
    * Object constructor
    * @param {Object} device Instance of PetwantDevice or class with simillar functionality
    * @param {Array<Transport>} transports Array of provided transport objects of Transport class
    */
   constructor(device, transports) {
-    this._controlBelongsTo = null // { userId: 'id', transport: transportObject }
+    super()
+
+    this._controlBelongsTo = null // { userId: 'id', transport: transportInstance }
     this._feedingInProcess = false
     this._device = device
-    this._transports = transports
+
+    this._transportList = {} // { 'transportClassName': transportInstance }
+    for (let transportInstance of transports)
+      this._transportList[transportInstance.constructor.name] = transportInstance
+
     this._validRpcResources = {
       device: {
         objectToCall: this._device,
@@ -26,37 +33,19 @@ class PetfeederServer {
       },
     }
 
-    // Transport objects configuration
+    // Subscribing to transports`s events
     for (const transport of this._transports) {
-      console.info('Transport added:', transport.constructor.name)
-      transport.on('rpc', ({ res, userId, args }) => {
-        console.info(
-          `[RPC] Transport: "${transport.constructor.name}" User: "${userId}" Resource: "${res}" Arguments: "${args}"`
-        )
-        this._rpc(res, args)
-          .then(result => {
-            return transport.rpcResponse(res, userId, { result })
-          })
-          .catch(err => {
-            console.error(err)
-            return transport.rpcResponse(res, userId, { error: err.message })
-          })
-          .catch(err => console.error(err))
-      })
+      console.info('[SERVER] Transport added:', transport.constructor.name)
+      transport.onAny(this.onTransportEvent)
     }
 
     // Setup device
-    this._device.on('buttondown', () =>
-      console.info('[DEVICE] Button down event')
-    )
+    this._device.on('buttondown', () => console.info('[DEVICE] Button down event'))
 
     this._device.on('buttonup', () => console.info('[DEVICE] Button up event'))
 
     this._device.on('buttonlongpress', pressedTime =>
-      console.info(
-        '[DEVICE] Button long press event with pressed time (ms):',
-        pressedTime
-      )
+      console.info('[DEVICE] Button long press event with pressed time (ms):', pressedTime)
     )
 
     this._device.on('clocksynchronized', () => {
@@ -72,10 +61,7 @@ class PetfeederServer {
 
     this._device.on('feedingcomplete', motorRevolutions => {
       this._feedingInProcess = false
-      console.info(
-        '[DEVICE] Feeding complete event with motor revolutions done:',
-        motorRevolutions
-      )
+      console.info('[DEVICE] Feeding complete event with motor revolutions done:', motorRevolutions)
 
       this.emit('event/device/feedingcomplete', motorRevolutions)
     })
@@ -90,26 +76,58 @@ class PetfeederServer {
     })
   }
 
-  emit(event, data) {
-    for (const transport of this._transports) transport.event(event, data)
+  static get EVENT_RESPONSE() {
+    return 'response'
+  }
+
+  getRegisteredTransportInstance(className) {
+    return this._transportList[className]
   }
 
   /**
-   * Remote procedure call
-   * @param {String} path Resource to execute, for example: device/feedManually
-   * @param {Array} args Arguments
+   * Remote procedure call handler
+   * @param {String} path Full path to the resource to execute, for example: "device/feedManually"
+   * @param {Array} args Arguments of the desired resource
    */
-  async _rpc(path, args) {
+  async onRpc(path, args) {
     const [resource, method] = path.split('/', 2)
     if (
       Object.keys(this._validRpcResources).indexOf(resource) !== -1 &&
       this._validRpcResources[resource].methodsAllowed.indexOf(method) !== -1
     ) {
-      const result = await this._validRpcResources[resource].objectToCall[
-        method
-      ](...args)
-      return result
+      return await this._validRpcResources[resource].objectToCall[method](...args)
     } else throw new InvalidRPCResourceException(path)
+  }
+
+  onTransportEvent(event, data) {
+    const resourceType = event.split('/', 1)
+    const { transportClass, userId, args } = data
+    switch (resourceType) {
+      case 'rpc':
+        this.onRpc(event, args)
+          .then(result => {
+            this.emitTransportEvent([event, PetfeederServer.EVENT_RESPONSE].join('/'), {
+              transportClass,
+              userId,
+              args: result,
+            })
+          })
+          .catch(err => console.error(err))
+        break
+      default:
+        this.emitTransportEvent([event, PetfeederServer.EVENT_RESPONSE].join('/'))
+        break
+    }
+  }
+
+  emitTransportEvent(event, data) {
+    const { transportClass, userId, args } = data
+    const transportInstance = this.getRegisteredTransportInstance(transportClass)
+    if (transportInstance)
+      transportInstance.emitEvent([event, this.PATH_RESPONSE_STR].join('/'), {
+        userId,
+        data: args,
+      })
   }
 
   // Setup and run
@@ -122,9 +140,7 @@ class PetfeederServer {
     // Here we can check if button pressed after start
     this._device
       .getButtonState()
-      .then(buttonState =>
-        console.info('Button "SET" pressed on startup:', buttonState)
-      )
+      .then(buttonState => console.info('Button "SET"  is pressed on startup:', buttonState))
       .catch(err => console.error(err))
 
     console.info('UART...')
@@ -132,16 +148,12 @@ class PetfeederServer {
     console.info('OK')
 
     console.info('LEDs...')
-    await Promise.all([
-      this._device.setPowerLedState(true),
-      this._device.setLinkLedState(false),
-    ])
+    await Promise.all([this._device.setPowerLedState(true), this._device.setLinkLedState(false)])
 
     console.info('OK')
 
     const allTransportsStarted = []
-    for (const transport of this._transports)
-      allTransportsStarted.push(transport.run())
+    for (const transport of this._transports) allTransportsStarted.push(transport.run())
 
     await Promise.all(allTransportsStarted)
 

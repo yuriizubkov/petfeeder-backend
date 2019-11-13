@@ -1,35 +1,32 @@
-const EventEmitter = require('events')
+const EventEmitter2 = require('eventemitter2')
 const { InterfaceNotImplementedException } = require('../error-types')
-class TransportInterface extends EventEmitter {
-  constructor(/*authProvider*/) {
+class TransportInterface extends EventEmitter2 {
+  constructor() {
     super()
+  }
+
+  static get EVENT_CONNECTION() {
+    return 'event/transport/connection'
+  }
+
+  static get EVENT_DISCONNECTED() {
+    return 'event/transport/disconnected'
   }
 
   get connectedUsersCount() {
     throw new InterfaceNotImplementedException(
-      this.constructor.name +
-        ' should override this method with return type of Number'
-    )
-  }
-
-  rpcResponse() {
-    throw new InterfaceNotImplementedException(
-      this.constructor.name +
-        ' should override this method with return type of Promise'
-    )
-  }
-
-  event() {
-    throw new InterfaceNotImplementedException(
-      this.constructor.name + ' should override this method'
+      this.constructor.name + ' should override this method with return type of Number'
     )
   }
 
   run() {
     throw new InterfaceNotImplementedException(
-      this.constructor.name +
-        ' should override this method with return type of Promise'
+      this.constructor.name + ' should override this method with return type of Promise'
     )
+  }
+
+  emitEvent(event, data) {
+    throw new InterfaceNotImplementedException(this.constructor.name + ' should override this method')
   }
 }
 

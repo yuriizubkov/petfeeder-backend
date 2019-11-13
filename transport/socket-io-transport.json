@@ -1,0 +1,7 @@
+{
+  "port": 80,
+  "options": {
+    "path": "/api",
+    "serveClient": false
+  }
+}

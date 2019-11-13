@@ -2,7 +2,7 @@ const PetfeederServer = require('./petfeeder-server')
 const Transport = require('./transport')
 const Auth = require('./auth')
 
-// Server name and version
+// Printing server name and version
 const packageConfig = require('./package.json')
 console.log(packageConfig.name, packageConfig.version)
 
@@ -57,9 +57,7 @@ async function cleanup(sig) {
 
 // Setup server
 const auth = new Auth.MockAuthProvider()
-const server = new PetfeederServer(device, [
-  new Transport.SocketIoTransport(auth),
-])
+const server = new PetfeederServer(device, [new Transport.SocketIoTransport(auth)])
 
 // Run server
 server.run()
