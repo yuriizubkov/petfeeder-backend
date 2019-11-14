@@ -13,40 +13,44 @@ class SocketIoTransport extends TransportInterface {
       this.emit(TransportInterface.EVENT_CONNECTION, {
         transportClass: this.constructor.name,
         userId: socket.id,
-        args: null,
+        data: null,
       })
 
       // Passing all "user level" events out from socket.io
       socket.use((packet, next) => {
-        const [event, data] = packet
-        this.emit(event, {
+        const packetEvent = packet.slice(0, 1)[0]
+        const packetData = packet.slice(1).filter(value => typeof value !== 'function')
+        this.emit(packetEvent, {
           transportClass: this.constructor.name,
           userId: socket.id,
-          args: data instanceof Array ? data : [data], // should be an array for arguments
+          data: packetData,
         })
 
         next()
       })
 
       // This is socket.io - specific event name hardcoded here
-      socket.on('disconnect', () => {
+      socket.on('disconnect', reason => {
         this.emit(TransportInterface.EVENT_DISCONNECTED, {
           transportClass: this.constructor.name,
           userId: socket.id,
-          args: null,
+          data: reason,
         })
       })
     })
   }
 
-  emitEvent(event, data) {
-    const { userId, data } = data
+  emitEvent(event, eventConfig) {
+    const { userId, data } = eventConfig || {}
 
     // userId not set, so this is broadcast message for all users
-    if (userId === null || userID === undefined) this._io.emit(event, data)
+    if (userId === null || userId === undefined) this._io.emit(event, data)
     else {
-      const userSocket = this._io.connected[userId]
-      if (userSocket) userSocket.emit(event, data)
+      const userSocket = this._io.sockets.connected[userId]
+      if (userSocket) {
+        if (data !== null && data !== undefined) userSocket.emit(event, data)
+        else userSocket.emit(event)
+      }
     }
   }
 

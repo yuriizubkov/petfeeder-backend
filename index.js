@@ -7,7 +7,8 @@ const packageConfig = require('./package.json')
 console.log(packageConfig.name, packageConfig.version)
 
 // Detecting active environment
-const ENV = process.env.NODE_ENV || 'production'
+//TODO: const ENV = process.env.NODE_ENV || 'production'
+const ENV = 'development'
 console.log('Environment set:', ENV)
 
 // Device selection

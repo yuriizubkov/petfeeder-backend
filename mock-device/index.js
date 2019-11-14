@@ -42,9 +42,7 @@ class MockDevice extends EventEmitter {
 
   set powerLedBlinking(value) {
     if (typeof value !== 'boolean')
-      throw new InvalidParameterException(
-        "Parameter 'value' is incorrect, it must be type of a Boolean"
-      )
+      throw new InvalidParameterException("Parameter 'value' is incorrect, it must be type of a Boolean")
 
     this._powerLedBlinking = value
   }
@@ -55,9 +53,7 @@ class MockDevice extends EventEmitter {
 
   set linkLedBlinking(value) {
     if (typeof value !== 'boolean')
-      throw new InvalidParameterException(
-        "Parameter 'value' is incorrect, it must be type of a Boolean"
-      )
+      throw new InvalidParameterException("Parameter 'value' is incorrect, it must be type of a Boolean")
 
     this._linkLedBlinking = value
   }
@@ -73,8 +69,7 @@ class MockDevice extends EventEmitter {
   }
 
   feedManually(portions = 1) {
-    if (!this._uartConnected)
-      return Promise.reject(new UARTNotConnectedException())
+    if (!this._uartConnected) return Promise.reject(new UARTNotConnectedException())
 
     setTimeout(() => {
       this.emit('feedingcomplete', portions)
@@ -84,19 +79,14 @@ class MockDevice extends EventEmitter {
   }
 
   getSchedule() {
-    if (!this._uartConnected)
-      return Promise.reject(new UARTNotConnectedException())
+    if (!this._uartConnected) return Promise.reject(new UARTNotConnectedException())
 
     return new Promise((resolve, reject) => {
-      fs.readFile(
-        path.resolve(__dirname, 'schedule.json'),
-        'UTF-8',
-        (err, data) => {
-          if (err) return reject(err)
-          let schedule = JSON.parse(data)
-          resolve(schedule)
-        }
-      )
+      fs.readFile(path.resolve(__dirname, 'schedule.json'), 'UTF-8', (err, data) => {
+        if (err) return reject(err)
+        let schedule = JSON.parse(data)
+        resolve(schedule)
+      })
     })
   }
 
@@ -108,29 +98,28 @@ class MockDevice extends EventEmitter {
     soundIndex = 10, // no sound
     enabled = true
   ) {
-    if (!this._uartConnected)
-      return Promise.reject(new UARTNotConnectedException())
+    if (!this._uartConnected) return Promise.reject(new UARTNotConnectedException())
 
     return new Promise((resolve, reject) => {
       const scheduleFilePath = path.resolve(__dirname, 'schedule.json')
       fs.readFile(scheduleFilePath, 'UTF-8', (err, data) => {
         if (err) return reject(err)
-        let schedule = JSON.parse(data)
-        const entry = schedule[entryIndex - 1]
-        entry.hours = hours
-        entry.minutes = minutes
-        entry.portions = portions
-        entry.soundIndex = soundIndex
-        entry.enabled = enabled
+        try {
+          let schedule = JSON.parse(data)
+          const entry = schedule[entryIndex - 1]
+          entry.hours = hours
+          entry.minutes = minutes
+          entry.portions = portions
+          entry.soundIndex = soundIndex
+          entry.enabled = enabled
 
-        fs.writeFile(
-          scheduleFilePath,
-          JSON.stringify(schedule),
-          (err, data) => {
+          fs.writeFile(scheduleFilePath, JSON.stringify(schedule), (err, data) => {
             if (err) return reject(err)
             resolve()
-          }
-        )
+          })
+        } catch (err) {
+          reject(err)
+        }
       })
     })
   }
@@ -174,20 +163,15 @@ class MockDevice extends EventEmitter {
         },
       ]
 
-      fs.writeFile(
-        scheduleFilePath,
-        JSON.stringify(disabledSchedule),
-        (err, data) => {
-          if (err) return reject(err)
-          resolve()
-        }
-      )
+      fs.writeFile(scheduleFilePath, JSON.stringify(disabledSchedule), (err, data) => {
+        if (err) return reject(err)
+        resolve()
+      })
     })
   }
 
   getPowerLedState() {
-    if (!this._gpioSetupCompleted)
-      return Promise.reject(new GPIOSetupNotCompletedException())
+    if (!this._gpioSetupCompleted) return Promise.reject(new GPIOSetupNotCompletedException())
 
     return Promise.resolve(this._powerLedState)
   }
@@ -195,21 +179,17 @@ class MockDevice extends EventEmitter {
   setPowerLedState(state) {
     if (typeof state !== 'boolean')
       return Promise.reject(
-        new InvalidParameterException(
-          "Parameter 'state' is incorrect, it must be type of a Boolean"
-        )
+        new InvalidParameterException("Parameter 'state' is incorrect, it must be type of a Boolean")
       )
 
-    if (!this._gpioSetupCompleted)
-      return Promise.reject(new GPIOSetupNotCompletedException())
+    if (!this._gpioSetupCompleted) return Promise.reject(new GPIOSetupNotCompletedException())
 
     this._powerLedState = state
     return Promise.resolve()
   }
 
   getLinkLedState() {
-    if (!this._gpioSetupCompleted)
-      return Promise.reject(new GPIOSetupNotCompletedException())
+    if (!this._gpioSetupCompleted) return Promise.reject(new GPIOSetupNotCompletedException())
 
     return Promise.resolve(this._linkLedState)
   }
@@ -217,21 +197,17 @@ class MockDevice extends EventEmitter {
   setLinkLedState(state) {
     if (typeof state !== 'boolean')
       return Promise.reject(
-        new InvalidParameterException(
-          "Parameter 'state' is incorrect, it must be type of a Boolean"
-        )
+        new InvalidParameterException("Parameter 'state' is incorrect, it must be type of a Boolean")
       )
 
-    if (!this._gpioSetupCompleted)
-      return Promise.reject(new GPIOSetupNotCompletedException())
+    if (!this._gpioSetupCompleted) return Promise.reject(new GPIOSetupNotCompletedException())
 
     this._linkLedState = state
     return Promise.resolve()
   }
 
   getButtonState() {
-    if (!this._gpioSetupCompleted)
-      return Promise.reject(new GPIOSetupNotCompletedException())
+    if (!this._gpioSetupCompleted) return Promise.reject(new GPIOSetupNotCompletedException())
 
     return Promise.resolve(this._buttonState)
   }

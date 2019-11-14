@@ -25,6 +25,11 @@ class TransportInterface extends EventEmitter2 {
     )
   }
 
+  /**
+   * Emit an event for all connected users or one user with userId
+   * @param {String} event string as 'event/server/authRequest' for example
+   * @param {Object} data plain object in form of { userId, data }
+   */
   emitEvent(event, data) {
     throw new InterfaceNotImplementedException(this.constructor.name + ' should override this method')
   }
