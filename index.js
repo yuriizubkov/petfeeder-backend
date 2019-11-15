@@ -1,6 +1,9 @@
 const PetfeederServer = require('./petfeeder-server')
+const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
+
+let mdnsAd = null
 
 // Printing server name and version
 const packageConfig = require('./package.json')
@@ -33,6 +36,8 @@ async function cleanup(sig) {
   } catch (err) {}
 
   device.destroy()
+  mdnsAd && mdnsAd.stop()
+
   console.info('Cleanup done.')
   process.exit(0)
 }
@@ -61,4 +66,15 @@ const auth = new Auth.MockAuthProvider()
 const server = new PetfeederServer(device, [new Transport.SocketIoTransport(auth)])
 
 // Run server
-server.run()
+server.run().then(() => {
+  // Setup Bonjour
+  mdnsAd = mdns.createAdvertisement(mdns.tcp('socket-io'), 80, {
+    name: 'iot-smart-petfeeder',
+    txtRecord: {
+      ver: '0.0.1',
+      path: '/api',
+    },
+  })
+
+  mdnsAd.start()
+})

@@ -20,7 +20,7 @@ class PetfeederServer {
     this._validRpcResources = {
       device: {
         objectToCall: this._device,
-        methodsAllowed: ['feedManually', 'getSchedule', 'setScheduleEntry'],
+        methodsAllowed: ['feedManually', 'getSchedule', 'setScheduleEntry', 'clearSchedule'],
       },
       wifi: {
         objectToCall: null,
@@ -214,7 +214,7 @@ class PetfeederServer {
     for (let transport of Object.values(this._transportList)) allTransportsStarted.push(transport.run())
 
     await Promise.all(allTransportsStarted)
-
+    console.info(`[${PetfeederServer.utcDate}][SERVER] All transports has started`)
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initialization complete`)
   }
 }
