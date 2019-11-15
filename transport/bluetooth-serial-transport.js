@@ -1,6 +1,6 @@
-const TransportInterface = require('./transport-interface')
+const TransportBase = require('./transport-base')
 
-class BluetoothSerialTransport extends TransportInterface {
+class BluetoothSerialTransport extends TransportBase {
   constructor() {
     super()
   }

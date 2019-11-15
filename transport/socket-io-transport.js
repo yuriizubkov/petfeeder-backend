@@ -1,8 +1,8 @@
-const TransportInterface = require('./transport-interface')
+const TransportBase = require('./transport-base')
 const config = require('./socket-io-transport.json') // loading configuration file for this particular "transport"
 const IO = require('socket.io')
 
-class SocketIoTransport extends TransportInterface {
+class SocketIoTransport extends TransportBase {
   constructor() {
     super()
 
@@ -10,7 +10,7 @@ class SocketIoTransport extends TransportInterface {
     // This is socket.io - specific event name hardcoded here
     this._io.on('connection', socket => {
       // Notify server about new connection
-      this.emit(TransportInterface.EVENT_CONNECTION, {
+      this.emit(TransportBase.EVENT_CONNECTION, {
         transportClass: this.constructor.name,
         userId: socket.id,
         data: null,
@@ -31,7 +31,7 @@ class SocketIoTransport extends TransportInterface {
 
       // This is socket.io - specific event name hardcoded here
       socket.on('disconnect', reason => {
-        this.emit(TransportInterface.EVENT_DISCONNECTED, {
+        this.emit(TransportBase.EVENT_DISCONNECTED, {
           transportClass: this.constructor.name,
           userId: socket.id,
           data: reason,

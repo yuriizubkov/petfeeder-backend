@@ -1,6 +1,6 @@
-const TransportInterface = require('./transport-interface')
+const TransportBase = require('./transport-base')
 
-class WebsocketsWsTransport extends TransportInterface {
+class WebsocketsWsTransport extends TransportBase {
   constructor() {
     super()
   }

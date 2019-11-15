@@ -1,6 +1,6 @@
 const EventEmitter2 = require('eventemitter2')
 const { MethodNotImplementedException } = require('../error-types')
-class TransportInterface extends EventEmitter2 {
+class TransportBase extends EventEmitter2 {
   constructor() {
     super()
   }
@@ -35,4 +35,4 @@ class TransportInterface extends EventEmitter2 {
   }
 }
 
-module.exports = TransportInterface
+module.exports = TransportBase
