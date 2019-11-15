@@ -1,5 +1,5 @@
 const EventEmitter2 = require('eventemitter2')
-const { InterfaceNotImplementedException } = require('../error-types')
+const { MethodNotImplementedException } = require('../error-types')
 class TransportInterface extends EventEmitter2 {
   constructor() {
     super()
@@ -14,13 +14,13 @@ class TransportInterface extends EventEmitter2 {
   }
 
   get connectedUsersCount() {
-    throw new InterfaceNotImplementedException(
+    throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Number'
     )
   }
 
   run() {
-    throw new InterfaceNotImplementedException(
+    throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Promise'
     )
   }
@@ -31,7 +31,7 @@ class TransportInterface extends EventEmitter2 {
    * @param {Object} data plain object in form of { userId, data }
    */
   emitEvent(event, data) {
-    throw new InterfaceNotImplementedException(this.constructor.name + ' should override this method')
+    throw new MethodNotImplementedException(this.constructor.name + ' should override this method')
   }
 }
 

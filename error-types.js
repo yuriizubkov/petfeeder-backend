@@ -35,7 +35,7 @@ class UnknownMessageException extends Error {
   }
 }
 
-class InterfaceNotImplementedException extends Error {
+class MethodNotImplementedException extends Error {
   constructor(message) {
     super(message)
     this.name = this.constructor.name
@@ -56,6 +56,6 @@ module.exports = {
   UARTNotConnectedException,
   InvalidParameterException,
   UnknownMessageException,
-  InterfaceNotImplementedException,
+  MethodNotImplementedException,
   InvalidRPCResourceException,
 }
