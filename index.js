@@ -66,16 +66,16 @@ const server = new PetfeederServer(device, [new Transport.SocketIoTransport(auth
 
 // Run server
 server.run().then(() => {
+  const socketIoConfig = require('./transport/socket-io-transport.json')
   // Setup Bonjour
-  mdnsAd = mdns.createAdvertisement(mdns.tcp('socket-io'), 80, {
+  mdnsAd = mdns.createAdvertisement(mdns.tcp('socket-io'), socketIoConfig.port, {
     name: 'iot-smart-petfeeder',
     txtRecord: {
       ver: '0.0.1',
-      path: '/api',
+      path: socketIoConfig.path,
     },
   })
 
   mdnsAd.start()
-
   console.info(`[${PetfeederServer.utcDate}][SERVER] Bonjour service has started`)
 })
