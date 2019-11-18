@@ -10,8 +10,7 @@ const packageConfig = require('./package.json')
 console.log(packageConfig.name, packageConfig.version)
 
 // Detecting active environment
-//TODO: const ENV = process.env.NODE_ENV || 'production'
-const ENV = 'development'
+const ENV = process.env.NODE_ENV || 'production'
 console.log('Environment set:', ENV)
 
 // Device selection
@@ -77,4 +76,6 @@ server.run().then(() => {
   })
 
   mdnsAd.start()
+
+  console.info(`${PetfeederServer.utcDate}[SERVER] Bonjour service has started`)
 })

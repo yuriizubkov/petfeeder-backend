@@ -7,6 +7,10 @@ const {
   InvalidParameterException,
 } = require('../error-types')
 
+/**
+ * Purpose of this class - to be able to develop software without access to the actual device.
+ * This class mimics behavior of a real device.
+ */
 class MockDevice extends EventEmitter {
   constructor(
     uartPortName = '/dev/serial0',

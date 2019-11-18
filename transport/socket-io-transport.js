@@ -67,10 +67,6 @@ class SocketIoTransport extends TransportBase {
       return Object.values(this.sockets.connected)[0]
     } else return null
   }
-
-  // rpcResponse(resource, userId, result) {
-  //   this._io.sockets.connected[userId].emit([PATH_RPC_STR, resource, PATH_RESPONSE_STR].join('/'), result)
-  // }
 }
 
 module.exports = SocketIoTransport
