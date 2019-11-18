@@ -77,5 +77,5 @@ server.run().then(() => {
 
   mdnsAd.start()
 
-  console.info(`${PetfeederServer.utcDate}[SERVER] Bonjour service has started`)
+  console.info(`[${PetfeederServer.utcDate}][SERVER] Bonjour service has started`)
 })
