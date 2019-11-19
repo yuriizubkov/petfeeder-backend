@@ -13,6 +13,7 @@ class DataBase {
 
     return path.resolve(
       __dirname,
+      'data',
       dateUtcNow.getUTCFullYear().toString(),
       pad(dateUtcNow.getUTCMonth()),
       pad(dateUtcNow.getUTCDay()),
@@ -43,8 +44,9 @@ class DataBase {
   }
 
   static async get(collection = 'events') {
-    const db = DataBase._getAdapter()
-    return await db.get(collection)
+    const db = await DataBase._getAdapter()
+    const result = await db.get(collection).value()
+    return result
   }
 
   static async push(dbObject, collection = 'events') {
@@ -55,10 +57,12 @@ class DataBase {
       .write()
   }
 
-  static update() {
-    // const adapter = new FileSync(DataBase._currentDbFilePath)
-    // const db = low(adapter)
-    // db.defaults({ events: [], gallery: [] }).write()
+  static async pushEvent(type, data) {
+    await DataBase.push({
+      timestamp: Date.now(), // timestamp UTC
+      type,
+      data,
+    })
   }
 }
 

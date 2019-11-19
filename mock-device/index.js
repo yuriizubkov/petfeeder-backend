@@ -240,14 +240,14 @@ class MockDevice extends EventEmitter {
     this.emit('warningnofood')
   }
 
-  emulateScheduledFeeding(scheduleEntry) {
+  emulateScheduledFeeding(entryIndex, soundIndex, motorRevolutionsDone) {
     this.emit('scheduledfeedingstarted', {
-      entryIndex: scheduleEntry.entryIndex, // entry index
-      soundIndex: scheduleEntry.soundIndex, // sound file index to play
+      entryIndex, // entry index
+      soundIndex, // sound file index to play
     })
 
     setTimeout(() => {
-      this.emit('feedingcomplete', scheduleEntry.portions)
+      this.emit('feedingcomplete', motorRevolutionsDone)
     }, 2000)
   }
 

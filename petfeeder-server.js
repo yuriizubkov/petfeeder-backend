@@ -15,6 +15,7 @@ class PetfeederServer {
     this._currentFeedingWasScheduled = false
     this._currentFeedingPortions = 0
     this._device = device
+    this._cachedSchedule = [] //TODO: renew on schedule update
 
     this._transportList = {} // { 'transportClassName': transportInstance }
     for (let transportInstance of transports)
@@ -24,6 +25,10 @@ class PetfeederServer {
       device: {
         objectToCall: this._device,
         methodsAllowed: ['feedManually', 'getSchedule', 'setScheduleEntry', 'clearSchedule'],
+      },
+      database: {
+        objectToCall: DB,
+        methodsAllowed: ['get'],
       },
       wifi: {
         objectToCall: null,
@@ -56,16 +61,18 @@ class PetfeederServer {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Clock synchronization event`)
       this.emitTransportEvent('event/device/clocksynchronized')
 
-      DB.push({
-        id: Date.now(), // timestamp UTC
-        type: 'clocksync',
-      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
+      DB.pushEvent('clocksync').catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
 
     this._device.on('scheduledfeedingstarted', entryData => {
       this._currentFeedingInProcess = true
       this._currentFeedingWasScheduled = true
-      this._currentFeedingPortions = 2 //TODO: read real data from schedule records
+
+      if (this._cachedSchedule && this._cachedSchedule instanceof Array) {
+        const scheduleEntry = this._cachedSchedule.filter(value => value.entryIndex === entryData.entryIndex)[0]
+        this._currentFeedingPortions = scheduleEntry.portions
+      } else this._currentFeedingPortions = -1 // in case if we had no cached schedule at this point
+
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
       this.emitTransportEvent('event/device/scheduledfeedingstarted', { data: entryData })
     })
@@ -79,15 +86,14 @@ class PetfeederServer {
 
       this.emitTransportEvent('event/device/feedingcomplete', { data: motorRevolutions })
 
-      DB.push({
-        id: Date.now(), // timestamp UTC,
-        type: 'feeding',
-        data: {
-          scheduled: this._currentFeedingWasScheduled,
-          scheduledPortions: this._currentFeedingPortions, // TODO: if less than issued portions - that means motor is stuck
-          issuedPortions: motorRevolutions,
-        },
+      DB.pushEvent('feeding', {
+        scheduled: this._currentFeedingWasScheduled,
+        scheduledPortions: this._currentFeedingPortions,
+        issuedPortions: motorRevolutions,
+        motorStuck: motorRevolutions < this._currentFeedingPortions,
       }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
+
+      if (motorRevolutions < this._currentFeedingPortions) this.emitTransportEvent('event/device/warningmotorstuck')
     })
 
     this._device.on('unknownmessage', data => {
@@ -97,12 +103,8 @@ class PetfeederServer {
     this._device.on('warningnofood', () => {
       console.warn(`[${PetfeederServer.utcDate}][DEVICE] No food event!`)
       this.emitTransportEvent('event/device/warningnofood')
-      DB.push({
-        id: Date.now(), // timestamp UTC
-        type: 'warning',
-        data: {
-          type: 'nofood',
-        },
+      DB.pushEvent('warning', {
+        type: 'nofood',
       }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
   }
@@ -245,12 +247,24 @@ class PetfeederServer {
     await Promise.all([this._device.setPowerLedState(true), this._device.setLinkLedState(false)])
     console.info(`[${PetfeederServer.utcDate}][SERVER] LEDs OK`)
 
+    this._device
+      .getSchedule()
+      .then(schedule => {
+        this._cachedSchedule = schedule
+        console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cached:`, schedule)
+      })
+      .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on startup:`, err))
+
     const allTransportsStarted = []
     for (let transport of Object.values(this._transportList)) allTransportsStarted.push(transport.run())
 
     await Promise.all(allTransportsStarted)
     console.info(`[${PetfeederServer.utcDate}][SERVER] All transports has started`)
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initialization complete`)
+
+    setTimeout(() => {
+      this._device.emulateScheduledFeeding(1, 10, 1)
+    }, 5000)
   }
 }
 
