@@ -1,4 +1,5 @@
 const { InvalidRPCResourceException } = require('./error-types')
+const DB = require('./database')
 
 class PetfeederServer {
   /**
@@ -10,7 +11,9 @@ class PetfeederServer {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing server...`)
 
     this._controlBelongsTo = null // { userId: 'id', transport: transportInstance }
-    this._feedingInProcess = false
+    this._currentFeedingInProcess = false
+    this._currentFeedingWasScheduled = false
+    this._currentFeedingPortions = 0
     this._device = device
 
     this._transportList = {} // { 'transportClassName': transportInstance }
@@ -41,31 +44,50 @@ class PetfeederServer {
     // Setup device
     this._device.on('buttondown', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`))
 
-    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`))
+    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`)) //TODO: manual feeding to log
 
-    this._device.on('buttonlongpress', pressedTime =>
+    this._device.on('buttonlongpress', pressedTime => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Button long press event with pressed time (ms):`, pressedTime)
-    )
+      this._device.linkLedBlinking = !this._device.linkLedBlinking
+      // TODO: turn on/off bluetooth
+    })
 
     this._device.on('clocksynchronized', () => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Clock synchronization event`)
       this.emitTransportEvent('event/device/clocksynchronized')
+
+      DB.push({
+        id: new Date.now(), // timestamp UTC
+        type: 'clocksync',
+      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
 
     this._device.on('scheduledfeedingstarted', entryData => {
-      this._feedingInProcess = true
+      this._currentFeedingInProcess = true
+      this._currentFeedingWasScheduled = true
+      this._currentFeedingPortions = 2 //TODO: read real data from schedule records
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
       this.emitTransportEvent('event/device/scheduledfeedingstarted', { data: entryData })
     })
 
     this._device.on('feedingcomplete', motorRevolutions => {
-      this._feedingInProcess = false
+      this._currentFeedingInProcess = false
       console.info(
         `[${PetfeederServer.utcDate}][DEVICE] Feeding complete event with motor revolutions done:`,
         motorRevolutions
       )
 
       this.emitTransportEvent('event/device/feedingcomplete', { data: motorRevolutions })
+
+      DB.push({
+        id: new Date.now(), // timestamp UTC,
+        type: 'feeding',
+        data: {
+          scheduled: this._currentFeedingWasScheduled,
+          scheduledPortions: this._currentFeedingPortions, // TODO: if less than issued portions - that means motor is stuck
+          issuedPortions: motorRevolutions,
+        },
+      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
 
     this._device.on('unknownmessage', data => {
@@ -75,6 +97,13 @@ class PetfeederServer {
     this._device.on('warningnofood', () => {
       console.warn(`[${PetfeederServer.utcDate}][DEVICE] No food event!`)
       this.emitTransportEvent('event/device/warningnofood')
+      DB.push({
+        id: new Date.now(), // timestamp UTC
+        type: 'warning',
+        data: {
+          type: 'nofood',
+        },
+      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
   }
 
@@ -111,6 +140,12 @@ class PetfeederServer {
       Object.keys(this._validRpcResources).indexOf(resource) !== -1 &&
       this._validRpcResources[resource].methodsAllowed.indexOf(method) !== -1
     ) {
+      // for logging to database
+      if (resource === 'device' && method === 'feedManually') {
+        this._currentFeedingWasScheduled = false
+        this._currentFeedingPortions = args[0] // portions - 1st argument
+      }
+
       const result = await this._validRpcResources[resource].objectToCall[method](...args)
       return result
     } else throw new InvalidRPCResourceException(path)
