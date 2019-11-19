@@ -15,8 +15,8 @@ class DataBase {
       __dirname,
       'data',
       dateUtcNow.getUTCFullYear().toString(),
-      pad(dateUtcNow.getUTCMonth()),
-      pad(dateUtcNow.getUTCDay()),
+      pad(dateUtcNow.getUTCMonth() + 1),
+      pad(dateUtcNow.getUTCDate()),
       'db.json'
     )
   }

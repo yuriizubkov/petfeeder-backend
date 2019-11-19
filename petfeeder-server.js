@@ -121,8 +121,8 @@ class PetfeederServer {
     const now = new Date(Date.now())
     return (
       `${now.getUTCFullYear()}` +
-      `.${pad(now.getUTCMonth())}` +
-      `.${pad(now.getUTCDay())} ` +
+      `.${pad(now.getUTCMonth() + 1)}` +
+      `.${pad(now.getUTCDate())} ` +
       `${pad(now.getUTCHours())}` +
       `:${pad(now.getUTCMinutes())}` +
       `:${pad(now.getUTCSeconds())}` +
