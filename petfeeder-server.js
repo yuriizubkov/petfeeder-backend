@@ -261,10 +261,6 @@ class PetfeederServer {
     await Promise.all(allTransportsStarted)
     console.info(`[${PetfeederServer.utcDate}][SERVER] All transports has started`)
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initialization complete`)
-
-    setTimeout(() => {
-      this._device.emulateScheduledFeeding(1, 10, 1)
-    }, 5000)
   }
 }
 
