@@ -15,6 +15,31 @@
     {
       "id": 1574157735596,
       "type": "clocksync"
+    },
+    {
+      "id": 1574158456386,
+      "type": "clocksync"
+    },
+    {
+      "id": 1574158516390,
+      "type": "clocksync"
+    },
+    {
+      "id": 1574158523158,
+      "type": "feeding",
+      "data": {
+        "scheduled": false,
+        "scheduledPortions": "3",
+        "issuedPortions": "3"
+      }
+    },
+    {
+      "id": 1574158576393,
+      "type": "clocksync"
+    },
+    {
+      "id": 1574158636398,
+      "type": "clocksync"
     }
   ],
   "gallery": []

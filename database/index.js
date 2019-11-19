@@ -38,7 +38,8 @@ class DataBase {
     await DataBase._createPathIfNotExist(filePath)
     const adapter = new FileAsync(filePath)
     const db = await low(adapter)
-    return await db.defaults({ events: [], gallery: [] }).write()
+    await db.defaults({ events: [], gallery: [] }).write()
+    return db
   }
 
   static async get(collection = 'events') {
