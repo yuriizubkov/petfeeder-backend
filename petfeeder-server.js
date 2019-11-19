@@ -57,7 +57,7 @@ class PetfeederServer {
       this.emitTransportEvent('event/device/clocksynchronized')
 
       DB.push({
-        id: new Date.now(), // timestamp UTC
+        id: Date.now(), // timestamp UTC
         type: 'clocksync',
       }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
@@ -80,7 +80,7 @@ class PetfeederServer {
       this.emitTransportEvent('event/device/feedingcomplete', { data: motorRevolutions })
 
       DB.push({
-        id: new Date.now(), // timestamp UTC,
+        id: Date.now(), // timestamp UTC,
         type: 'feeding',
         data: {
           scheduled: this._currentFeedingWasScheduled,
@@ -98,7 +98,7 @@ class PetfeederServer {
       console.warn(`[${PetfeederServer.utcDate}][DEVICE] No food event!`)
       this.emitTransportEvent('event/device/warningnofood')
       DB.push({
-        id: new Date.now(), // timestamp UTC
+        id: Date.now(), // timestamp UTC
         type: 'warning',
         data: {
           type: 'nofood',
