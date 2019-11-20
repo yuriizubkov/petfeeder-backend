@@ -30,7 +30,7 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['get'],
+        methodsAllowed: ['getEvents'],
       },
       wifi: {
         objectToCall: null,
