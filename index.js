@@ -72,7 +72,7 @@ server.run().then(() => {
     name: 'iot-smart-petfeeder',
     txtRecord: {
       ver: '0.0.1',
-      path: socketIoConfig.path,
+      path: socketIoConfig.options.path,
     },
   })
 
