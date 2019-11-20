@@ -167,6 +167,8 @@ class PetfeederServer {
     ) {
       // for logging to database
       if (resource === 'device' && method === 'feedManually') {
+        if (this._currentFeedingInProcess) throw new Error('Feeding already in process')
+
         this._currentFeedingWasScheduled = false
         this._currentFeedingPortions = args[0] // portions - 1st argument
       }
