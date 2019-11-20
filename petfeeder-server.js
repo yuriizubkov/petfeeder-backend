@@ -52,19 +52,19 @@ class PetfeederServer {
     // Setup device
     this._device.on('buttondown', () => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`)
-      this._buttonLastPressedMs = Date.now()
+      // this._buttonLastPressedMs = Date.now()
     })
 
     this._device.on('buttonup', () => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`)
       // manual feeding on hardware button press - to log
-      const currentMs = Date.now()
-      if (currentMs - this._buttonLastPressedMs < 3000) {
-        // if 'short' press
-        this._currentFeedingInProcess = true
-        this._currentFeedingPortions = 1
-        this._currentFeedingWasScheduled = false
-      }
+      // const currentMs = Date.now()
+      // if (currentMs - this._buttonLastPressedMs < 3000) {
+      //   // if 'short' press
+      //   this._currentFeedingInProcess = true
+      //   this._currentFeedingPortions = 1
+      //   this._currentFeedingWasScheduled = false
+      // }
     })
 
     this._device.on('buttonlongpress', pressedTime => {
@@ -81,16 +81,24 @@ class PetfeederServer {
     })
 
     this._device.on('scheduledfeedingstarted', entryData => {
-      this._currentFeedingInProcess = true
-      this._currentFeedingWasScheduled = true
-
-      if (this._cachedSchedule && this._cachedSchedule instanceof Array) {
-        const scheduleEntry = this._cachedSchedule.filter(value => value.entryIndex === entryData.entryIndex)[0]
-        this._currentFeedingPortions = scheduleEntry.portions
-      } else this._currentFeedingPortions = -1 // in case if we had no cached schedule at this point
-
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
-      this.emitTransportEvent('event/device/scheduledfeedingstarted', { data: entryData })
+
+      // hardware button was pressed
+      if (entryData.entryIndex === 0) {
+        this._currentFeedingInProcess = true
+        this._currentFeedingWasScheduled = false
+        this._currentFeedingPortions = 1
+        this.emitTransportEvent('event/device/hardwarebuttonfeedingstarted', { data: entryData })
+      } else {
+        this._currentFeedingInProcess = true
+        this._currentFeedingWasScheduled = true
+
+        if (this._cachedSchedule && this._cachedSchedule instanceof Array) {
+          const scheduleEntry = this._cachedSchedule.filter(value => value.entryIndex === entryData.entryIndex)[0]
+          this._currentFeedingPortions = scheduleEntry.portions
+        } else this._currentFeedingPortions = -1 // in case if we had no cached schedule at this point
+        this.emitTransportEvent('event/device/scheduledfeedingstarted', { data: entryData })
+      }
     })
 
     this._device.on('feedingcomplete', motorRevolutions => {
@@ -106,7 +114,6 @@ class PetfeederServer {
         scheduled: this._currentFeedingWasScheduled,
         scheduledPortions: this._currentFeedingPortions,
         issuedPortions: motorRevolutions,
-        motorStuck: motorRevolutions < this._currentFeedingPortions,
       }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
 
       if (motorRevolutions < this._currentFeedingPortions) this.emitTransportEvent('event/device/warningmotorstuck')
