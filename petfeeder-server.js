@@ -1,9 +1,11 @@
 const { InvalidRPCResourceException } = require('./error-types')
 const DB = require('./database')
 
+/**
+ * Server for DIY pet feeder
+ */
 class PetfeederServer {
   /**
-   * Object constructor
    * @param {Object} device Instance of PetwantDevice or class with simillar functionality
    * @param {Array<Transport>} transports Array of provided transport objects of Transport class
    */
@@ -182,11 +184,8 @@ class PetfeederServer {
           })
         break
       case 'event':
-        console.info(
-          `[${PetfeederServer.utcDate}][EVENT] New connection ${transportClass} ${userId} ${event} ${JSON.stringify(
-            data
-          )}`
-        )
+        console.info(`[${PetfeederServer.utcDate}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
+        //TODO: transmit control to another user
         break
       default:
         console.error(
@@ -251,7 +250,8 @@ class PetfeederServer {
       .getSchedule()
       .then(schedule => {
         this._cachedSchedule = schedule
-        console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cached:`, schedule)
+        console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cached:`)
+        console.info(schedule)
       })
       .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on startup:`, err))
 

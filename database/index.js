@@ -23,14 +23,50 @@ class DataBase {
 
   static async _createPathIfNotExist(filePath) {
     return new Promise((resolve, reject) => {
-      fs.access(filePath, fs.constants.F_OK, err => {
-        if (!err) return resolve() // exists
+      // recursive option for mkdir was introduced in node v10.12
+      // so we have to have workaround for later versions
+      // https://stackoverflow.com/questions/28498296/enoent-no-such-file-or-directory-on-fs-mkdirsync
+      // https://stackoverflow.com/questions/6656324/check-for-current-node-version
+      // https://gist.github.com/bpedro/742162
 
-        const dirName = path.dirname(filePath)
-        fs.mkdir(dirName, { recursive: true }, err => {
-          err ? reject(err) : resolve()
+      const splittedVersion = process.versions.node.split('.')
+      const NODE_MAJOR_VERSION = 9 //splittedVersion[0]
+      const NODE_MINOR_VERSION = splittedVersion[1]
+
+      const dirPath = path.dirname(filePath)
+
+      if (NODE_MAJOR_VERSION >= 10 && NODE_MINOR_VERSION >= 12) {
+        fs.access(filePath, fs.constants.F_OK, err => {
+          if (!err) return resolve() // file exists
+          fs.mkdir(dirPath, { recursive: true }, err => {
+            err ? reject(err) : resolve()
+          })
         })
-      })
+      } else {
+        const mkdirp = dir =>
+          path
+            .resolve(dir)
+            .split(path.sep)
+            .reduce((acc, cur) => {
+              const currentPath = path.normalize(acc + path.sep + cur)
+              try {
+                fs.statSync(currentPath)
+              } catch (e) {
+                if (e.code === 'ENOENT') {
+                  fs.mkdirSync(currentPath)
+                } else {
+                  throw e
+                }
+              }
+              return currentPath
+            }, '')
+
+        fs.access(filePath, fs.constants.F_OK, err => {
+          if (!err) return resolve() // file exists
+          mkdirp(dirPath)
+          resolve()
+        })
+      }
     })
   }
 
