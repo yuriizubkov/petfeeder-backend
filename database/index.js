@@ -4,19 +4,17 @@ const path = require('path')
 const fs = require('fs')
 
 class DataBase {
-  static get _currentDbFilePath() {
+  static get _currentDbFilePath(dateUtc = new Date(Date.now())) {
     function pad(number) {
       return ('0' + number).slice(-2)
     }
 
-    const dateUtcNow = new Date(Date.now())
-
     return path.resolve(
       __dirname,
       'data',
-      dateUtcNow.getUTCFullYear().toString(),
-      pad(dateUtcNow.getUTCMonth() + 1),
-      pad(dateUtcNow.getUTCDate()),
+      dateUtc.getUTCFullYear().toString(),
+      pad(dateUtc.getUTCMonth() + 1),
+      pad(dateUtc.getUTCDate()),
       'db.json'
     )
   }
@@ -79,8 +77,8 @@ class DataBase {
     return db
   }
 
-  static async get(collection = 'events') {
-    const db = await DataBase._getAdapter()
+  static async get(collection = 'events', utcDate = new Date(Date.now())) {
+    const db = await DataBase._getAdapter(utcDate)
     const result = await db.get(collection).value()
     return result
   }
@@ -99,6 +97,11 @@ class DataBase {
       type,
       data,
     })
+  }
+
+  static async getEvents(utcDate = new Date(Date.now())) {
+    const events = await DataBase.get('events', utcDate)
+    return events
   }
 }
 
