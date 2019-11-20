@@ -30,7 +30,7 @@ class DataBase {
       // https://gist.github.com/bpedro/742162
 
       const splittedVersion = process.versions.node.split('.')
-      const NODE_MAJOR_VERSION = 9 //splittedVersion[0]
+      const NODE_MAJOR_VERSION = splittedVersion[0]
       const NODE_MINOR_VERSION = splittedVersion[1]
 
       const dirPath = path.dirname(filePath)
