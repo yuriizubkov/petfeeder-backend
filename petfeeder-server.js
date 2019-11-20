@@ -17,7 +17,8 @@ class PetfeederServer {
     this._currentFeedingWasScheduled = false
     this._currentFeedingPortions = 0
     this._device = device
-    this._cachedSchedule = [] //TODO: renew on schedule update
+    this._cachedSchedule = []
+    this._buttonLastPressedMs = 0
 
     this._transportList = {} // { 'transportClassName': transportInstance }
     for (let transportInstance of transports)
@@ -49,14 +50,27 @@ class PetfeederServer {
     }
 
     // Setup device
-    this._device.on('buttondown', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`))
+    this._device.on('buttondown', () => {
+      console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`)
+      this._buttonLastPressedMs = Date.now()
+    })
 
-    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`)) //TODO: manual feeding to log
+    this._device.on('buttonup', () => {
+      console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`)
+      // manual feeding on hardware button press - to log
+      const currentMs = Date.now()
+      if (currentMs - this._buttonLastPressedMs < 3000) {
+        // if 'short' press
+        this._currentFeedingInProcess = true
+        this._currentFeedingPortions = 1
+        this._currentFeedingWasScheduled = false
+      }
+    })
 
     this._device.on('buttonlongpress', pressedTime => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Button long press event with pressed time (ms):`, pressedTime)
       this._device.linkLedBlinking = !this._device.linkLedBlinking
-      // TODO: turn on/off bluetooth
+      // TODO: toggle bluetooth on/off
     })
 
     this._device.on('clocksynchronized', () => {
@@ -151,6 +165,19 @@ class PetfeederServer {
       }
 
       const result = await this._validRpcResources[resource].objectToCall[method](...args)
+
+      // check if schedule was changed, need update cached schedule
+      if (resource === 'device' && (method === 'setScheduleEntry' || method === 'clearSchedule')) {
+        this._device
+          .getSchedule()
+          .then(schedule => {
+            this._cachedSchedule = schedule
+            console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cache renewed:`)
+            console.info(schedule)
+          })
+          .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on renew:`, err))
+      }
+
       return result
     } else throw new InvalidRPCResourceException(path)
   }
@@ -185,7 +212,7 @@ class PetfeederServer {
         break
       case 'event':
         console.info(`[${PetfeederServer.utcDate}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
-        //TODO: transmit control to another user
+        //TODO: pass control to another user
         break
       default:
         console.error(
