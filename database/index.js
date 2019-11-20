@@ -4,7 +4,7 @@ const path = require('path')
 const fs = require('fs')
 
 class DataBase {
-  static get _currentDbFilePath(dateUtc = new Date(Date.now())) {
+  static _getCurrentDbFilePath(dateUtc = new Date(Date.now())) {
     function pad(number) {
       return ('0' + number).slice(-2)
     }
@@ -68,8 +68,8 @@ class DataBase {
     })
   }
 
-  static async _getAdapter() {
-    const filePath = DataBase._currentDbFilePath
+  static async _getAdapter(utcDate = new Date(Date.now())) {
+    const filePath = DataBase._getCurrentDbFilePath(utcDate)
     await DataBase._createPathIfNotExist(filePath)
     const adapter = new FileAsync(filePath)
     const db = await low(adapter)
