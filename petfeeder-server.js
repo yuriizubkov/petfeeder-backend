@@ -50,22 +50,8 @@ class PetfeederServer {
     }
 
     // Setup device
-    this._device.on('buttondown', () => {
-      console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`)
-      // this._buttonLastPressedMs = Date.now()
-    })
-
-    this._device.on('buttonup', () => {
-      console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`)
-      // manual feeding on hardware button press - to log
-      // const currentMs = Date.now()
-      // if (currentMs - this._buttonLastPressedMs < 3000) {
-      //   // if 'short' press
-      //   this._currentFeedingInProcess = true
-      //   this._currentFeedingPortions = 1
-      //   this._currentFeedingWasScheduled = false
-      // }
-    })
+    this._device.on('buttondown', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`))
+    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`))
 
     this._device.on('buttonlongpress', pressedTime => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Button long press event with pressed time (ms):`, pressedTime)
@@ -83,7 +69,7 @@ class PetfeederServer {
     this._device.on('scheduledfeedingstarted', entryData => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
 
-      // hardware button was pressed
+      // if hardware button was pressed entryData = { entryIndex: 0, soundIndex: 6}
       if (entryData.entryIndex === 0) {
         this._currentFeedingInProcess = true
         this._currentFeedingWasScheduled = false
@@ -165,7 +151,7 @@ class PetfeederServer {
       Object.keys(this._validRpcResources).indexOf(resource) !== -1 &&
       this._validRpcResources[resource].methodsAllowed.indexOf(method) !== -1
     ) {
-      // for logging to database
+      // manual feeding hook for logging to the database
       if (resource === 'device' && method === 'feedManually') {
         if (this._currentFeedingInProcess) throw new Error('Feeding already in process')
 
@@ -175,7 +161,7 @@ class PetfeederServer {
 
       const result = await this._validRpcResources[resource].objectToCall[method](...args)
 
-      // check if schedule was changed, need update cached schedule
+      // check if schedule was changed, need to update cached schedule then
       if (resource === 'device' && (method === 'setScheduleEntry' || method === 'clearSchedule')) {
         this._device
           .getSchedule()
@@ -266,7 +252,7 @@ class PetfeederServer {
     await this._device.setupGPIO()
     console.info(`[${PetfeederServer.utcDate}][SERVER] GPIO OK`)
 
-    // Here we can check if button pressed after start
+    // Here we can check if button was pressed after start
     this._device
       .getButtonState()
       .then(buttonState =>
