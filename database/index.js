@@ -99,7 +99,8 @@ class DataBase {
     })
   }
 
-  static async getEvents(utcDate = new Date(Date.now())) {
+  static async getEvents(year, month, date) {
+    const utcDate = new Date(Date.UTC(year, month - 1, date))
     const events = await DataBase.get('events', utcDate)
     return events
   }
