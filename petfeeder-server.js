@@ -18,7 +18,7 @@ class PetfeederServer {
     this._currentFeedingPortions = 0
     this._device = device
     this._cachedSchedule = []
-    this._buttonLastPressedMs = 0
+    this._hardwareButtonFeeding = false
 
     this._transportList = {} // { 'transportClassName': transportInstance }
     for (let transportInstance of transports)
@@ -74,10 +74,12 @@ class PetfeederServer {
         this._currentFeedingInProcess = true
         this._currentFeedingWasScheduled = false
         this._currentFeedingPortions = 1
+        this._hardwareButtonFeeding = true
         this.emitTransportEvent('event/device/hardwarebuttonfeedingstarted', { data: entryData })
       } else {
         this._currentFeedingInProcess = true
         this._currentFeedingWasScheduled = true
+        this._hardwareButtonFeeding = false
 
         if (this._cachedSchedule && this._cachedSchedule instanceof Array) {
           const scheduleEntry = this._cachedSchedule.filter(value => value.entryIndex === entryData.entryIndex)[0]
@@ -96,11 +98,17 @@ class PetfeederServer {
 
       this.emitTransportEvent('event/device/feedingcomplete', { data: motorRevolutions })
 
-      DB.pushEvent('feeding', {
+      const eventData = {
         scheduled: this._currentFeedingWasScheduled,
         scheduledPortions: this._currentFeedingPortions,
         issuedPortions: motorRevolutions,
-      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
+      }
+
+      if (this._hardwareButtonFeeding) eventData.hardwareButtonPressed = true
+
+      DB.pushEvent('feeding', eventData).catch(err =>
+        console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err)
+      )
 
       if (motorRevolutions < this._currentFeedingPortions) this.emitTransportEvent('event/device/warningmotorstuck')
     })
@@ -154,7 +162,7 @@ class PetfeederServer {
       // manual feeding hook for logging to the database
       if (resource === 'device' && method === 'feedManually') {
         if (this._currentFeedingInProcess) throw new Error('Feeding already in process')
-
+        this._hardwareButtonFeeding = false
         this._currentFeedingWasScheduled = false
         this._currentFeedingPortions = args[0] // portions - 1st argument
       }
