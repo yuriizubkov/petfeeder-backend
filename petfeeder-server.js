@@ -86,7 +86,7 @@ class PetfeederServer {
         } else this._currentFeedingPortions = -1 // in case if we had no cached schedule at this point
       }
 
-      this.emitTransportEvent('event/device/scheduledfeedingstarted', { data: entryData })
+      this.emitTransportEvent('event/device/feedingstarted', { data: entryData })
     })
 
     this._device.on('feedingcomplete', motorRevolutions => {
