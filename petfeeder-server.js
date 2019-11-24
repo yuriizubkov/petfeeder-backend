@@ -68,15 +68,13 @@ class PetfeederServer {
 
     this._device.on('scheduledfeedingstarted', entryData => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
-
+      this._currentFeedingInProcess = true
       // if hardware button was pressed entryData = { entryIndex: 0, soundIndex: 6}
       if (entryData.entryIndex === 0) {
-        this._currentFeedingInProcess = true
         this._currentFeedingWasScheduled = false
         this._currentFeedingPortions = 1
         this._hardwareButtonFeeding = true
       } else {
-        this._currentFeedingInProcess = true
         this._currentFeedingWasScheduled = true
         this._hardwareButtonFeeding = false
 
@@ -161,7 +159,8 @@ class PetfeederServer {
     ) {
       // manual feeding hook for logging to the database
       if (resource === 'device' && method === 'feedManually') {
-        if (this._currentFeedingInProcess) throw new Error('Feeding already in process')
+        if (this._currentFeedingInProcess) throw new Error('Feeding already in progress')
+        else this._currentFeedingInProcess = true
         this._hardwareButtonFeeding = false
         this._currentFeedingWasScheduled = false
         this._currentFeedingPortions = args[0] // portions - 1st argument
