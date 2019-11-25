@@ -1,5 +1,6 @@
 const { InvalidRPCResourceException } = require('./error-types')
 const DB = require('./database')
+const Camera = require('./camera')
 
 /**
  * Server for DIY pet feeder
@@ -19,6 +20,7 @@ class PetfeederServer {
     this._device = device
     this._cachedSchedule = []
     this._hardwareButtonFeeding = false
+    this._camera = null
 
     this._transportList = {} // { 'transportClassName': transportInstance }
     for (let transportInstance of transports)
@@ -28,6 +30,10 @@ class PetfeederServer {
       device: {
         objectToCall: this._device,
         methodsAllowed: ['feedManually', 'getSchedule', 'setScheduleEntry', 'clearSchedule'],
+      },
+      camera: {
+        objectToCall: this,
+        methodsAllowed: ['startVideoStream', 'stopVideoStream'],
       },
       database: {
         objectToCall: DB,
@@ -231,10 +237,12 @@ class PetfeederServer {
 
   emitTransportEvent(event, eventConfig) {
     const { transportClass, userId, data } = eventConfig || {}
-    console.info(
-      `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'} ${userId ||
-        ''} ${event} ${JSON.stringify(data)}`
-    )
+
+    if (event !== 'event/camera/h264data')
+      console.info(
+        `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
+          ''} ${event} ${JSON.stringify(data)}`
+      )
 
     if (transportClass) {
       const transportInstance = this._transportList[transportClass]
@@ -250,6 +258,24 @@ class PetfeederServer {
           data,
         })
     }
+  }
+
+  async startVideoStream() {
+    this._camera = new Camera()
+    //TODO: not for all but for subscribed only
+    this._camera.on('data', data =>
+      this.emitTransportEvent('event/camera/h264data', {
+        data: Buffer.concat([this._camera.NAL_SEPARATOR, data]),
+      })
+    )
+
+    await this._camera.startVideo()
+  }
+
+  async stopVideoStream() {
+    if (!this._camera) return Promise.resolve()
+    await this._camera.stopVideo()
+    this._camera = null
   }
 
   // Setup and run
