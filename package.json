@@ -24,7 +24,6 @@
     "lowdb": "^1.0.0",
     "mdns": "^2.5.1",
     "petwant-device": "^1.0.4",
-    "pi-camera-connect": "^0.2.0",
     "socket.io": "^2.3.0",
     "stream-split": "^1.1.0"
   }

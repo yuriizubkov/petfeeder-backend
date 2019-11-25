@@ -1,17 +1,31 @@
-const { StreamCamera, Codec, Flip, SensorMode } = require('pi-camera-connect')
 const Splitter = require('stream-split')
+const spawn = require('child_process').spawn
+const fs = require('fs')
+const stream = require('stream')
+const EventEmitter = require('events')
 
-class Camera extends StreamCamera {
-  constructor() {
-    super({
+/**
+ * Based on: https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
+ */
+class Camera extends EventEmitter {
+  constructor(config) {
+    super()
+    const defaults = {
       width: 640,
       height: 480,
-      fps: 15,
-      codec: Codec.H264,
-      flip: Flip.Vertical,
-      sensorMode: SensorMode.Mode4,
-    })
+      framerate: 15,
+      bitrate: 8000000, // 8Mbit
+      profile: 'baseline',
+      vflip: true,
+      mode: 4,
+      output: '-',
+      nopreview: true,
+      timeout: 0,
+    }
 
+    this._raspiArgs = Object.assign(defaults, config)
+    this._childProcess = null
+    this._streams = []
     this._NAL_SEPARATOR = new Buffer.from([0, 0, 0, 1]) //NAL break
   }
 
@@ -19,17 +33,83 @@ class Camera extends StreamCamera {
     return this._NAL_SEPARATOR
   }
 
-  async startVideo() {
-    this._videoStream = this.createStream()
-    this._videoStream.pipe(splitter) //.pipe(writeStream)
-
-    await this.startCapture()
-    return this._videoStream
+  get raspiArgs() {
+    return this._raspiArgs
   }
 
-  async stopVideo() {
+  createStream() {
+    const newStream = new stream.Readable({
+      read: () => {},
+    })
+
+    this._streams.push(newStream)
+
+    return newStream
+  }
+
+  stopCapture() {
+    return new Promise(resolve => {
+      this._childProcess && this._childProcess.kill()
+
+      // Push null to each stream to indicate EOF
+      this._streams.forEach(stream => stream.push(null))
+      this._streams = []
+      resolve()
+    })
+  }
+
+  startCapture() {
+    return new Promise((resolve, reject) => {
+      const args = []
+      Object.keys(this._raspiArgs).forEach(key => {
+        args.push('--' + key)
+        if (typeof this._raspiArgs[key] !== 'boolean') args.push(this._raspiArgs[key])
+      })
+
+      console.log('Arguments:', args)
+
+      // Spawn child process
+      this._childProcess = spawn('raspivid', args)
+
+      // Listen for error event to reject promise
+      this._childProcess.once('error', err =>
+        reject(
+          new Error(
+            "Could not start capture with StreamCamera. Are you running on a Raspberry Pi with 'raspivid' installed?"
+          )
+        )
+      )
+
+      // Wait for first data event to resolve promise
+      this._childProcess.stdout.once('data', () => resolve())
+
+      // Listen for data event, delivering data to all streams
+      this._childProcess.stdout.on('data', data => {
+        this._streams.forEach(stream => stream.push(data))
+      })
+
+      // Listen for error events
+      this._childProcess.stdout.on('error', err => this.emit('error', err))
+      this._childProcess.stderr.on('data', data => this.emit('error', new Error(data)))
+      this._childProcess.stderr.on('error', err => this.emit('error', err))
+
+      // Listen for close events
+      this._childProcess.stdout.on('close', () => this.emit('close'))
+    })
+  }
+
+  async startVideoStream() {
+    //this._fileStream = fs.createWriteStream(`video-stream-${Date.now()}.h264`)
+    const stream = this.createStream().pipe(new Splitter(this._NAL_SEPARATOR))
+    // videoStream.on('data', data => {
+    //   this._fileStream.write(Buffer.concat([this._NAL_SEPARATOR, data]))
+    // })
+    if (!this._childProcess) await this.startCapture()
+    return stream
+  }
+
+  async stopVideoStream() {
     await this.stopCapture()
-    this._videoStream = null
   }
 }
 

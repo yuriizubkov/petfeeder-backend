@@ -237,45 +237,57 @@ class PetfeederServer {
 
   emitTransportEvent(event, eventConfig) {
     const { transportClass, userId, data } = eventConfig || {}
+    return new Promise(resolve => {
+      if (event !== 'event/camera/h264data')
+        console.info(
+          `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
+            ''} ${event} ${JSON.stringify(data)}`
+        )
 
-    if (event !== 'event/camera/h264data')
-      console.info(
-        `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
-          ''} ${event} ${JSON.stringify(data)}`
-      )
+      if (transportClass) {
+        const transportInstance = this._transportList[transportClass]
+        if (transportInstance)
+          transportInstance.emitEvent(event, {
+            userId,
+            data,
+          })
 
-    if (transportClass) {
-      const transportInstance = this._transportList[transportClass]
-      if (transportInstance)
-        transportInstance.emitEvent(event, {
-          userId,
-          data,
-        })
-    } else {
-      for (let transportInstance of Object.values(this._transportList))
-        transportInstance.emitEvent(event, {
-          userId,
-          data,
-        })
-    }
+        resolve()
+      } else {
+        for (let transportInstance of Object.values(this._transportList))
+          transportInstance.emitEvent(event, {
+            userId,
+            data,
+          })
+
+        resolve()
+      }
+    })
   }
 
   async startVideoStream() {
+    if (this._camera) throw new Error('Camera already started')
     this._camera = new Camera()
+    this._camera.on('error', err => console.error('Camera stream error:', err))
+    this._camera.on('close', () => console.info('Camera stream closed'))
+
+    const stream = await this._camera.startVideoStream()
+    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been started`)
     //TODO: not for all but for subscribed only
-    this._camera.on('data', data =>
+    stream.on('data', data =>
       this.emitTransportEvent('event/camera/h264data', {
-        data: Buffer.concat([this._camera.NAL_SEPARATOR, data]),
+        transportClass: 'SocketIoTransport',
+        data,
+        //data: Buffer.concat([this._camera.NAL_SEPARATOR, data]),
       })
     )
-
-    await this._camera.startVideo()
   }
 
   async stopVideoStream() {
     if (!this._camera) return Promise.resolve()
-    await this._camera.stopVideo()
+    await this._camera.stopVideoStream()
     this._camera = null
+    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been stopped`)
   }
 
   // Setup and run
