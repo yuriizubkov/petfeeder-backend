@@ -15,12 +15,11 @@ class Camera extends EventEmitter {
       height: 480,
       framerate: 15,
       bitrate: 8000000, // 8Mbit
-      profile: 'baseline',
-      vflip: true,
+      profile: 'baseline', // important! Broadway player will not work with another profile
       mode: 4,
-      output: '-',
-      nopreview: true,
-      timeout: 0,
+      output: '-', // important! output to stdout stream
+      nopreview: true, // no preview image
+      timeout: 0, // important! work until explicitly been stopped
     }
 
     this._raspiArgs = Object.assign(defaults, config)

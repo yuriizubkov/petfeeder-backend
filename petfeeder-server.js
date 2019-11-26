@@ -268,13 +268,14 @@ class PetfeederServer {
   async startVideoStream() {
     if (this._camera) throw new Error('Camera already started')
     // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
-    // additional parameters can be passed like { colfx: '128:128'} use -- prefixed parameter names (black and white video for noir cameras)
+    // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
     //TODO: in settings
     this._camera = new Camera({
       colfx: '128:128', // b&w video for moir cameras
+      vflip: true,
     })
 
-    this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR]Camera stream error:`, err))
+    this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera stream error:`, err))
     this._camera.on('close', () => console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream closed`))
 
     const stream = await this._camera.startVideoStream()
