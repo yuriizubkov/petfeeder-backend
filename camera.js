@@ -13,8 +13,8 @@ class Camera extends EventEmitter {
     const defaults = {
       width: 640,
       height: 480,
-      framerate: 15,
-      bitrate: 8000000, // 8Mbit
+      framerate: 30,
+      bitrate: 640000, // kBit is enough for 640x480 video https://comm.gatech.edu/resources/video/encoding
       profile: 'baseline', // important! Broadway player will not work with another profile
       mode: 4,
       output: '-', // important! output to stdout stream
