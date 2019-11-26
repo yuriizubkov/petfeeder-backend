@@ -279,6 +279,7 @@ class PetfeederServer {
     this._camera.on('close', () => console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream closed`))
 
     const stream = await this._camera.startVideoStream()
+    this._device.powerLedBlinking = true
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been started`)
     //TODO: not for all but for subscribed only
     stream.on('data', data =>
@@ -294,6 +295,8 @@ class PetfeederServer {
     await this._camera.stopVideoStream()
     this._camera = null
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been stopped`)
+    this._device.powerLedBlinking = false
+    await this._device.setPowerLedState(true)
   }
 
   // Setup and run
