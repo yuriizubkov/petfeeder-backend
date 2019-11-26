@@ -1,6 +1,7 @@
 const { InvalidRPCResourceException } = require('./error-types')
 const DB = require('./database')
 const Camera = require('./camera')
+const TransportBase = require('./transport/transport-base') // for constants
 
 /**
  * Server for DIY pet feeder
@@ -13,7 +14,7 @@ class PetfeederServer {
   constructor(device, transports) {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing server...`)
 
-    this._controlBelongsTo = null // { userId: 'id', transport: transportInstance }
+    this._controlBelongsTo = null // { userId: 'id', transportClass: transportClassName }
     this._currentFeedingInProcess = false
     this._currentFeedingWasScheduled = false
     this._currentFeedingPortions = 0
@@ -131,6 +132,7 @@ class PetfeederServer {
   }
 
   static get EVENT_RESPONSE() {
+    // TODO: to BaseTransport
     return 'response'
   }
 
@@ -190,6 +192,26 @@ class PetfeederServer {
     } else throw new InvalidRPCResourceException(path)
   }
 
+  onConnectionEvent(transportClass, userId, event, data) {
+    switch (event) {
+      case TransportBase.EVENT_CONNECT:
+        if (!this._controlBelongsTo)
+          this._controlBelongsTo = {
+            userId,
+            transportClass,
+          }
+
+        break
+      case TransportBase.EVENT_DISCONNECT:
+        if (this._controlBelongsTo && this._controlBelongsTo.userId === userId) {
+          this._controlBelongsTo = null
+          if (this._camera) this.stopVideoStream()
+          //TODO: transfer control to next connected user
+        }
+        break
+    }
+  }
+
   onTransportEvent(event, eventConfig) {
     const resourceType = event.split('/', 1)[0]
     const { transportClass, userId, data } = eventConfig || {}
@@ -220,7 +242,14 @@ class PetfeederServer {
         break
       case 'event':
         console.info(`[${PetfeederServer.utcDate}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
-        //TODO: pass control to another user
+        this.onConnectionEvent(transportClass, userId, event, data).catch(err => {
+          console.error(
+            `[${
+              PetfeederServer.utcDate
+            }][EVENT] Transport event error: ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`,
+            err
+          )
+        })
         break
       default:
         console.error(

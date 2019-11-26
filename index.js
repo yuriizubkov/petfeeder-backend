@@ -1,8 +1,24 @@
+const { resolve } = require('path')
+const history = require('connect-history-api-fallback')
+const express = require('express')
 const PetfeederServer = require('./petfeeder-server')
 const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
 
+const app = express()
+const { PORT = 80 } = process.env
+
+// UI
+const publicPath = resolve(__dirname, './web')
+const staticConf = { maxAge: '1y', etag: false }
+
+const staticMiddleware = express.static(publicPath, staticConf)
+app.use(staticMiddleware)
+app.use('/', history())
+app.use(staticMiddleware)
+
+// MDNS (Bonjour)
 let mdnsAd = null
 
 // Printing server name and version
@@ -12,6 +28,9 @@ console.log(packageConfig.name, packageConfig.version)
 // Detecting active environment
 const ENV = process.env.NODE_ENV || 'production'
 console.log('Environment set:', ENV)
+
+// Starting express server for UI
+app.listen(PORT, () => console.info(`[${PetfeederServer.utcDate}][SERVER] UI app is running on port ${PORT}`))
 
 // Device selection
 let device = null

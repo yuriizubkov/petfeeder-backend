@@ -10,7 +10,7 @@ class SocketIoTransport extends TransportBase {
     // This is socket.io - specific event name hardcoded here
     this._io.on('connection', socket => {
       // Notify server about new connection
-      this.emit(TransportBase.EVENT_CONNECTION, {
+      this.emit(TransportBase.EVENT_CONNECT, {
         transportClass: this.constructor.name,
         userId: socket.id,
         data: null,
@@ -31,7 +31,7 @@ class SocketIoTransport extends TransportBase {
 
       // This is socket.io - specific event name hardcoded here
       socket.on('disconnect', reason => {
-        this.emit(TransportBase.EVENT_DISCONNECTED, {
+        this.emit(TransportBase.EVENT_DISCONNECT, {
           transportClass: this.constructor.name,
           userId: socket.id,
           data: reason,

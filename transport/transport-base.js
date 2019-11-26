@@ -5,12 +5,12 @@ class TransportBase extends EventEmitter2 {
     super()
   }
 
-  static get EVENT_CONNECTION() {
-    return 'event/transport/connection'
+  static get EVENT_CONNECT() {
+    return 'event/transport/connect'
   }
 
-  static get EVENT_DISCONNECTED() {
-    return 'event/transport/disconnected'
+  static get EVENT_DISCONNECT() {
+    return 'event/transport/disconnect'
   }
 
   get connectedUsersCount() {
