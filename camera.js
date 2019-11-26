@@ -66,8 +66,6 @@ class Camera extends EventEmitter {
         if (typeof this._raspiArgs[key] !== 'boolean') args.push(this._raspiArgs[key])
       })
 
-      console.log('Arguments:', args)
-
       // Spawn child process
       this._childProcess = spawn('raspivid', args)
 
