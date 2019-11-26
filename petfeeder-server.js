@@ -192,7 +192,7 @@ class PetfeederServer {
     } else throw new InvalidRPCResourceException(path)
   }
 
-  onConnectionEvent(transportClass, userId, event, data) {
+  async onConnectionEvent(transportClass, userId, event, data) {
     switch (event) {
       case TransportBase.EVENT_CONNECT:
         if (!this._controlBelongsTo)
@@ -205,7 +205,7 @@ class PetfeederServer {
       case TransportBase.EVENT_DISCONNECT:
         if (this._controlBelongsTo && this._controlBelongsTo.userId === userId) {
           this._controlBelongsTo = null
-          if (this._camera) this.stopVideoStream()
+          if (this._camera) await this.stopVideoStream()
           //TODO: transfer control to next connected user
         }
         break
