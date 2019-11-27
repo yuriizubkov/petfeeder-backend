@@ -1,4 +1,5 @@
 const { InvalidRPCResourceException } = require('./error-types')
+const config = require('./petfeeder-server.json')
 const DB = require('./database')
 const Camera = require('./camera')
 const TransportBase = require('./transport/transport-base') // for constants
@@ -295,11 +296,7 @@ class PetfeederServer {
     if (this._camera) throw new Error('Camera already started')
     // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
     // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
-    //TODO: in settings
-    this._camera = new Camera({
-      colfx: '128:128', // b&w video for noir cameras
-      vflip: true,
-    })
+    this._camera = new Camera(config.camera)
 
     this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera stream error:`, err))
     const stream = await this._camera.startVideoStream()
