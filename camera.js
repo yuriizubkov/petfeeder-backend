@@ -50,10 +50,27 @@ class Camera extends EventEmitter {
     return new Promise(resolve => {
       this._childProcess && this._childProcess.kill()
 
+      const allStreamsDestroyed = []
       // Push null to each stream to indicate EOF
-      this._streams.forEach(stream => stream.push(null))
-      this._streams = []
-      resolve()
+      this._streams.forEach(stream => {
+        stream.push(null)
+        allStreamsDestroyed.push(
+          new Promise(res => {
+            if (stream.end) {
+              stream.end()
+              stream.once('drain', () => res())
+            } else {
+              stream.destroy()
+              res()
+            }
+          })
+        )
+      })
+
+      Promise.all(allStreamsDestroyed).then(() => {
+        this._streams = []
+        resolve()
+      })
     })
   }
 
