@@ -131,11 +131,6 @@ class PetfeederServer {
     })
   }
 
-  static get EVENT_RESPONSE() {
-    // TODO: to BaseTransport
-    return 'response'
-  }
-
   static get utcDate() {
     function pad(number) {
       return ('0' + number).slice(-2)
@@ -220,7 +215,7 @@ class PetfeederServer {
         console.info(`[${PetfeederServer.utcDate}][RPC] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
         this.onRpc(event, data)
           .then(result => {
-            this.emitTransportEvent([event, PetfeederServer.EVENT_RESPONSE].join('/'), {
+            this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
               transportClass,
               userId,
               data: result,
@@ -233,7 +228,7 @@ class PetfeederServer {
               )}`,
               err
             )
-            this.emitTransportEvent([event, PetfeederServer.EVENT_RESPONSE].join('/'), {
+            this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
               transportClass,
               userId,
               data: { error: err.message }, // error field with message for user
@@ -255,7 +250,7 @@ class PetfeederServer {
         console.error(
           `[${PetfeederServer.utcDate}][ERROR] Invalid resource ${transportClass} ${userId} ${event} ${data}`
         )
-        this.emitTransportEvent([event, PetfeederServer.EVENT_RESPONSE].join('/'), {
+        this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
           transportClass,
           userId,
           data: { error: `You have requested invalid resource: ${event}` },

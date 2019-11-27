@@ -13,6 +13,10 @@ class TransportBase extends EventEmitter2 {
     return 'event/transport/disconnect'
   }
 
+  static get EVENT_RESPONSE() {
+    return 'response'
+  }
+
   get connectedUsersCount() {
     throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Number'
