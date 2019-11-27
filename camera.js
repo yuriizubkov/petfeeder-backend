@@ -46,25 +46,33 @@ class Camera extends EventEmitter {
     return newStream
   }
 
-  stopCapture() {
+  _destroyStream(stream) {
     return new Promise(resolve => {
-      this._childProcess && this._childProcess.kill()
+      if (stream.end) {
+        stream.end()
+        stream.once('drain', () => {
+          stream.destroy()
+          resolve()
+        })
+      } else {
+        stream.destroy()
+        resolve()
+      }
+    })
+  }
+
+  stopCapture() {
+    return new Promise(async resolve => {
+      if (this._childProcess) {
+        this._childProcess.stdout.removeAllListeners('data')
+        this._childProcess.kill()
+      }
 
       const allStreamsDestroyed = []
-      // Push null to each stream to indicate EOF
+      // Push null to each stream to indicate EOF and destroy
       this._streams.forEach(stream => {
         stream.push(null)
-        allStreamsDestroyed.push(
-          new Promise(res => {
-            if (stream.end) {
-              stream.end()
-              stream.once('drain', () => res())
-            } else {
-              stream.destroy()
-              res()
-            }
-          })
-        )
+        allStreamsDestroyed.push(this._destroyStream(stream))
       })
 
       Promise.all(allStreamsDestroyed).then(() => {
@@ -99,7 +107,7 @@ class Camera extends EventEmitter {
 
       // Listen for data event, delivering data to all streams
       this._childProcess.stdout.on('data', data => {
-        this._streams.forEach(stream => stream.push(data))
+        this._streams.forEach(stream => !stream.destroyed && stream.push(data))
       })
 
       // Listen for error events
@@ -115,9 +123,6 @@ class Camera extends EventEmitter {
   async startVideoStream() {
     //this._fileStream = fs.createWriteStream(`video-stream-${Date.now()}.h264`)
     const stream = this.createStream().pipe(new Splitter(this._NAL_SEPARATOR))
-    // videoStream.on('data', data => {
-    //   this._fileStream.write(Buffer.concat([this._NAL_SEPARATOR, data]))
-    // })
     if (!this._childProcess) await this.startCapture()
     return stream
   }

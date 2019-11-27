@@ -27,6 +27,7 @@ class PetfeederServer {
     for (let transportInstance of transports)
       this._transportList[transportInstance.constructor.name] = transportInstance
 
+    // Simple rule set what we can call with RPC
     this._validRpcResources = {
       device: {
         objectToCall: this._device,
@@ -300,9 +301,8 @@ class PetfeederServer {
     })
 
     this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera stream error:`, err))
-    this._camera.on('close', () => console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream closed`))
-
     const stream = await this._camera.startVideoStream()
+
     this._device.powerLedBlinking = true
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been started`)
     //TODO: not for all but for subscribed only
@@ -316,11 +316,17 @@ class PetfeederServer {
 
   async stopVideoStream() {
     if (!this._camera) return Promise.resolve()
+
+    this._camera.once('close', async () => {
+      this._device.powerLedBlinking = false
+      await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
+      await this._device.setPowerLedState(true)
+    })
+
     await this._camera.stopVideoStream()
+
     this._camera = null
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been stopped`)
-    this._device.powerLedBlinking = false
-    await this._device.setPowerLedState(true)
   }
 
   // Setup and run
