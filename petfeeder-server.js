@@ -42,11 +42,11 @@ class PetfeederServer {
         methodsAllowed: ['getEvents'],
       },
       wifi: {
-        objectToCall: null,
+        objectToCall: null, // not implemented
         methodsAllowed: ['scan', 'connect', 'disconnect', 'turnOn', 'turnOff'],
       },
       bluetooth: {
-        objectToCall: null,
+        objectToCall: null, // not implemented
         methodsAllowed: ['scan', 'connect', 'disconnect', 'turnOn', 'turnOff'],
       },
     }
@@ -69,7 +69,7 @@ class PetfeederServer {
 
     this._device.on('clocksynchronized', () => {
       console.info(`[${PetfeederServer.utcDate}][DEVICE] Clock synchronization event`)
-      this.emitTransportEvent('event/device/clocksynchronized')
+      this.emitTransportEvent(TransportBase.EVENT_DEVICE_CLOCKSYNCHRONIZED)
 
       DB.pushEvent('clocksync').catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
     })
@@ -92,7 +92,7 @@ class PetfeederServer {
         } else this._currentFeedingPortions = -1 // in case if we had no cached schedule at this point
       }
 
-      this.emitTransportEvent('event/device/feedingstarted', { data: entryData })
+      this.emitTransportEvent(TransportBase.EVENT_DEVICE_FEEDINGSTARTED, { data: entryData })
     })
 
     this._device.on('feedingcomplete', motorRevolutions => {
@@ -102,7 +102,7 @@ class PetfeederServer {
         motorRevolutions
       )
 
-      this.emitTransportEvent('event/device/feedingcomplete', { data: motorRevolutions })
+      this.emitTransportEvent(TransportBase.EVENT_DEVICE_FEEDINGCOMPLETE, { data: motorRevolutions })
 
       const eventData = {
         scheduled: this._currentFeedingWasScheduled,
@@ -116,7 +116,8 @@ class PetfeederServer {
         console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err)
       )
 
-      if (motorRevolutions < this._currentFeedingPortions) this.emitTransportEvent('event/device/warningmotorstuck')
+      if (motorRevolutions < this._currentFeedingPortions)
+        this.emitTransportEvent(TransportBase.EVENT_DEVICE_WARNINGMOTORSTUCK)
     })
 
     this._device.on('unknownmessage', data => {
@@ -125,7 +126,7 @@ class PetfeederServer {
 
     this._device.on('warningnofood', () => {
       console.warn(`[${PetfeederServer.utcDate}][DEVICE] No food event!`)
-      this.emitTransportEvent('event/device/warningnofood')
+      this.emitTransportEvent(TransportBase.EVENT_DEVICE_WARNINGNOFOOD)
       DB.pushEvent('warning', {
         type: 'nofood',
       }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
@@ -216,7 +217,7 @@ class PetfeederServer {
         console.info(`[${PetfeederServer.utcDate}][RPC] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
         this.onRpc(event, data)
           .then(result => {
-            this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
+            this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
               transportClass,
               userId,
               data: result,
@@ -229,7 +230,7 @@ class PetfeederServer {
               )}`,
               err
             )
-            this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
+            this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
               transportClass,
               userId,
               data: { error: err.message }, // error field with message for user
@@ -251,7 +252,7 @@ class PetfeederServer {
         console.error(
           `[${PetfeederServer.utcDate}][ERROR] Invalid resource ${transportClass} ${userId} ${event} ${data}`
         )
-        this.emitTransportEvent([event, TransportBase.EVENT_RESPONSE].join('/'), {
+        this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
           transportClass,
           userId,
           data: { error: `You have requested invalid resource: ${event}` },
@@ -263,7 +264,7 @@ class PetfeederServer {
   emitTransportEvent(event, eventConfig) {
     const { transportClass, userId, data } = eventConfig || {}
     return new Promise(resolve => {
-      if (event !== 'event/camera/h264data')
+      if (event !== TransportBase.EVENT_CAMERA_H264DATA)
         console.info(
           `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
             ''} ${event} ${JSON.stringify(data)}`
@@ -296,7 +297,7 @@ class PetfeederServer {
     // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
     //TODO: in settings
     this._camera = new Camera({
-      colfx: '128:128', // b&w video for moir cameras
+      colfx: '128:128', // b&w video for noir cameras
       vflip: true,
     })
 
@@ -307,7 +308,7 @@ class PetfeederServer {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been started`)
     //TODO: not for all but for subscribed only
     stream.on('data', data =>
-      this.emitTransportEvent('event/camera/h264data', {
+      this.emitTransportEvent(TransportBase.EVENT_CAMERA_H264DATA, {
         transportClass: 'SocketIoTransport',
         data,
       })

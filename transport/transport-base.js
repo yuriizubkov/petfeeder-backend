@@ -5,25 +5,49 @@ class TransportBase extends EventEmitter2 {
     super()
   }
 
-  static get EVENT_CONNECT() {
-    return 'event/transport/connect'
+  static get EVENT_TRANSPORT_CONNECT() {
+    return 'event/transport/connection'
   }
 
-  static get EVENT_DISCONNECT() {
+  static get EVENT_TRANSPORT_DISCONNECT() {
     return 'event/transport/disconnect'
   }
 
-  static get EVENT_RESPONSE() {
-    return 'response'
+  static get EVENT_DEVICE_CLOCKSYNCHRONIZED() {
+    return 'event/device/clocksynchronized'
   }
 
-  get connectedUsersCount() {
-    throw new MethodNotImplementedException(
-      this.constructor.name + ' should override this method with return type of Number'
-    )
+  static get EVENT_DEVICE_FEEDINGSTARTED() {
+    return 'event/device/feedingstarted'
+  }
+
+  static get EVENT_DEVICE_FEEDINGCOMPLETE() {
+    return 'event/device/feedingcomplete'
+  }
+
+  static get EVENT_DEVICE_WARNINGMOTORSTUCK() {
+    return 'event/device/warningmotorstuck'
+  }
+
+  static get EVENT_DEVICE_WARNINGNOFOOD() {
+    return 'event/device/warningnofood'
+  }
+
+  static get EVENT_CAMERA_H264DATA() {
+    return 'event/camera/h264data'
+  }
+
+  static get EVENT_RESPONSE_SUFFIX() {
+    return '/response'
   }
 
   run() {
+    throw new MethodNotImplementedException(
+      this.constructor.name + ' should override this method with return type of Promise'
+    )
+  }
+
+  disconnectUser(userId) {
     throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Promise'
     )

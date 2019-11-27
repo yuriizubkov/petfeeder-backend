@@ -10,13 +10,13 @@ class SocketIoTransport extends TransportBase {
     // This is socket.io - specific event name hardcoded here
     this._io.on('connection', socket => {
       // Notify server about new connection
-      this.emit(TransportBase.EVENT_CONNECT, {
+      this.emit(TransportBase.EVENT_TRANSPORT_CONNECT, {
         transportClass: this.constructor.name,
         userId: socket.id,
         data: null,
       })
 
-      // Passing all "user level" events out from socket.io
+      // Passing all "user level" events out from socket.io to server
       socket.use((packet, next) => {
         const packetEvent = packet.slice(0, 1)[0]
         const packetData = packet.slice(1).filter(value => typeof value !== 'function')
@@ -31,7 +31,7 @@ class SocketIoTransport extends TransportBase {
 
       // This is socket.io - specific event name hardcoded here
       socket.on('disconnect', reason => {
-        this.emit(TransportBase.EVENT_DISCONNECT, {
+        this.emit(TransportBase.EVENT_TRANSPORT_DISCONNECT, {
           transportClass: this.constructor.name,
           userId: socket.id,
           data: reason,
@@ -58,9 +58,9 @@ class SocketIoTransport extends TransportBase {
     return Promise.resolve()
   }
 
-  // disconnect(userId) {
-  //   this._io.clients[userId].disconnect()
-  // }
+  disconnectUser(userId) {
+    this._io.clients[userId].disconnect()
+  }
 
   getNextConnectedUserId() {
     if (Object.keys(this.sockets.connected).length > 0) {
