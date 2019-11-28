@@ -180,11 +180,11 @@ class PetfeederServer {
     )[0]
   }
 
-  _addCameraStreamSubscriber(transportClass, userId, eventCb) {
+  _addCameraStreamSubscriber(transportClass, userId, stream) {
     this._cameraStreamSubscribers.push({
       userId,
       transportClass,
-      eventCb,
+      stream,
     })
   }
 
@@ -258,7 +258,7 @@ class PetfeederServer {
         break
       case TransportBase.EVENT_TRANSPORT_DISCONNECT:
         this._removeConnectedUser(transportClass, userId) // TODO: maybe one list of users
-        await this.stopVideoStream(transportClass, userId)
+        if (this._getCameraStreamSubscriber(transportClass, userId)) await this.stopVideoStream(transportClass, userId)
 
         // TODO: transfer control rights to next connected user
         break
@@ -355,32 +355,29 @@ class PetfeederServer {
       this._camera = new Camera(config.camera)
       this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
       this._camera.on('close', async () => {
+        // if (this._camera.recording) await this._camera.stopRecording()
         this._device.powerLedBlinking = false
         await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
         await this._device.setPowerLedState(true)
+        this._camera = null
+        console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
       })
 
       console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
     }
 
-    if (!this._camera.streaming) {
-      await this._camera.startCapture()
-      //await this._camera.startRecording()
-      this._device.powerLedBlinking = true
-    }
-
-    const eventCb = data => {
-      console.log(userId, data.length)
+    const stream = await this._camera.startStreaming()
+    stream.on('data', data =>
       this.emitTransportEvent(TransportBase.EVENT_CAMERA_H264DATA, {
         transportClass,
         userId,
         data,
       })
-    }
+    )
 
-    const stream = this._camera.getStream()
-    stream.on('data', eventCb)
-    //this._addCameraStreamSubscriber(transportClass, userId, eventCb)
+    // if (!this._camera.recording) await this._camera.startRecording()
+
+    this._device.powerLedBlinking = true
     this._addCameraStreamSubscriber(transportClass, userId, stream)
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been started for:`, transportClass, userId)
   }
@@ -388,21 +385,15 @@ class PetfeederServer {
   // TODO: remove caller from subscriber and if last - stop camera
   async stopVideoStream(transportClass, userId) {
     const streamSubscriber = this._getCameraStreamSubscriber(transportClass, userId)
-    streamSubscriber.eventCb.removeAllListeners('data')
-    if (!streamSubscriber) return Promise.resolve()
-
-    this._removeCameraStreamSubscriber(transportClass, userId)
+    if (!streamSubscriber) return Promise.reject('You are not subscribed to video stream')
 
     if (this._camera) {
-      //this._camera.stream.removeListener('data', streamSubscriber.eventCb) // .off was added in node v10
-      console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
-      if (this._cameraStreamSubscribers.length === 0) {
-        //await this._camera.stopRecording()
-        await this._camera.stopCapture()
-        this._camera = null
-        console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
-      }
+      // await this._camera.stopRecording()
+      await this._camera.stopStreaming(streamSubscriber.stream)
     }
+
+    this._removeCameraStreamSubscriber(transportClass, userId)
+    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
   }
 
   // Setup and run

@@ -6,7 +6,7 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * Based on: https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
+ * Based on ideas from: https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
  */
 class Camera extends EventEmitter {
   constructor(config) {
@@ -25,22 +25,36 @@ class Camera extends EventEmitter {
 
     this._raspiArgs = Object.assign(defaults, config)
     this._childProcess = null
+    this._streamSubscribers = []
     this._fileStream = null
     this._stream = new stream.Readable({
       read: () => {},
     })
 
-    this._NAL_SEPARATOR = Buffer.from([0, 0, 0, 1]) //NAL break
+    this._NAL_SEPARATOR = Buffer.from([0, 0, 0, 1]) //NAL h264 break
   }
 
   get streaming() {
     return this._childProcess !== null
   }
+  get recording() {
+    return this._fileStream !== null
+  }
 
-  getStream() {
-    const splitterStream = new Splitter(this._NAL_SEPARATOR)
-    this._stream.pipe(splitterStream)
-    return splitterStream
+  _createSplittedStream() {
+    const splittedStream = new Splitter(this._NAL_SEPARATOR)
+    this._stream.pipe(splittedStream) // piping video stream to new stream
+    this._streamSubscribers.push(splittedStream) // holding reference to keep it alive
+    return splittedStream
+  }
+
+  _removeStream(stream) {
+    const indexOfStream = this._streamSubscribers.indexOf(stream)
+    if (indexOfStream !== -1) {
+      this._stream.unpipe(stream) // unpiping stream from source video stream
+      stream.end && stream.end()
+      this._streamSubscribers.splice(indexOfStream, 1) // not holding reference to this stream anymore
+    }
   }
 
   async stopCapture() {
@@ -51,7 +65,7 @@ class Camera extends EventEmitter {
     }
 
     // Push null to stream to indicate EOF
-    // this._stream.push(null)
+    this._stream.push(null)
   }
 
   startCapture() {
@@ -97,25 +111,30 @@ class Camera extends EventEmitter {
     })
   }
 
-  startRecording() {
-    return new Promise((resolve, reject) => {
-      if (!this._stream) return reject('No video stream')
-      if (this._fileStream) return reject('Already recording')
-
-      this._fileStream = fs.createWriteStream(path.resolve(__dirname, `video-${Date.now()}.h264`))
-      this._stream.pipe(this._fileStream)
-      resolve()
-    })
+  async startStreaming() {
+    if (!this.streaming) await this.startCapture()
+    return this._createSplittedStream()
   }
 
-  stopRecording() {
-    return new Promise(resolve => {
-      this._stream.unpipe(this._fileStream)
-      this._fileStream.end(() => {
-        this._fileStream = null
-        resolve()
-      })
-    })
+  async stopStreaming(stream) {
+    this._removeStream(stream)
+    if (this._streamSubscribers.length === 0 && !this.recording) await this.stopCapture()
+  }
+
+  async startRecording(fileName = `video-${Date.now()}.h264`) {
+    if (this.recording) return Promise.reject('Already recording')
+    if (!this.streaming) await this.startCapture()
+
+    this._fileStream = fs.createWriteStream(path.resolve(__dirname, fileName))
+    this._stream.pipe(this._fileStream)
+  }
+
+  async stopRecording() {
+    if (!this.recording) return Promise.resolve()
+    this._stream.unpipe(this._fileStream)
+    this._fileStream.end()
+    this._fileStream = null
+    if (this._streamSubscribers.length === 0) await this.stopCapture()
   }
 }
 
