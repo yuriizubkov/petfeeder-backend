@@ -382,10 +382,10 @@ class PetfeederServer {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been started for:`, transportClass, userId)
   }
 
-  // TODO: remove caller from subscriber and if last - stop camera
+  // stopping video stream for userId and removing subscriber
   async stopVideoStream(transportClass, userId) {
     const streamSubscriber = this._getCameraStreamSubscriber(transportClass, userId)
-    if (!streamSubscriber) return Promise.reject('You are not subscribed to video stream')
+    if (!streamSubscriber) throw new Error('You are not subscribed to video stream')
 
     if (this._camera) {
       // await this._camera.stopRecording()
