@@ -1,8 +1,9 @@
 const Splitter = require('stream-split')
 const spawn = require('child_process').spawn
-const fs = require('fs')
 const stream = require('stream')
 const EventEmitter = require('events')
+const fs = require('fs')
+const path = require('path')
 
 /**
  * Based on: https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
@@ -24,62 +25,33 @@ class Camera extends EventEmitter {
 
     this._raspiArgs = Object.assign(defaults, config)
     this._childProcess = null
-    this._streams = []
-    this._NAL_SEPARATOR = new Buffer.from([0, 0, 0, 1]) //NAL break
-  }
-
-  get NAL_SEPARATOR() {
-    return this._NAL_SEPARATOR
-  }
-
-  get raspiArgs() {
-    return this._raspiArgs
-  }
-
-  createStream() {
-    const newStream = new stream.Readable({
+    this._fileStream = null
+    this._stream = new stream.Readable({
       read: () => {},
     })
 
-    this._streams.push(newStream)
-
-    return newStream
+    this._NAL_SEPARATOR = Buffer.from([0, 0, 0, 1]) //NAL break
   }
 
-  _destroyStream(stream) {
-    return new Promise(resolve => {
-      if (stream.end) {
-        stream.end()
-        stream.once('drain', () => {
-          stream.destroy()
-          resolve()
-        })
-      } else {
-        stream.destroy()
-        resolve()
-      }
-    })
+  get streaming() {
+    return this._childProcess !== null
   }
 
-  stopCapture() {
-    return new Promise(async resolve => {
-      if (this._childProcess) {
-        this._childProcess.stdout.removeAllListeners('data')
-        this._childProcess.kill()
-      }
+  getStream() {
+    const splitterStream = new Splitter(this._NAL_SEPARATOR)
+    this._stream.pipe(splitterStream)
+    return splitterStream
+  }
 
-      const allStreamsDestroyed = []
-      // Push null to each stream to indicate EOF and destroy
-      this._streams.forEach(stream => {
-        stream.push(null)
-        allStreamsDestroyed.push(this._destroyStream(stream))
-      })
+  async stopCapture() {
+    if (this._childProcess) {
+      this._childProcess.stdout.removeAllListeners('data')
+      this._childProcess.kill()
+      this._childProcess = null
+    }
 
-      Promise.all(allStreamsDestroyed).then(() => {
-        this._streams = []
-        resolve()
-      })
-    })
+    // Push null to stream to indicate EOF
+    // this._stream.push(null)
   }
 
   startCapture() {
@@ -107,7 +79,12 @@ class Camera extends EventEmitter {
 
       // Listen for data event, delivering data to all streams
       this._childProcess.stdout.on('data', data => {
-        this._streams.forEach(stream => !stream.destroyed && stream.push(data))
+        if (!this._stream.push(data)) {
+          this._childProcess.stdout.pause()
+          this._stream.once('drain', () => {
+            this._childProcess.stdout.resume()
+          })
+        }
       })
 
       // Listen for error events
@@ -120,15 +97,25 @@ class Camera extends EventEmitter {
     })
   }
 
-  async startVideoStream() {
-    //this._fileStream = fs.createWriteStream(`video-stream-${Date.now()}.h264`)
-    const stream = this.createStream().pipe(new Splitter(this._NAL_SEPARATOR))
-    if (!this._childProcess) await this.startCapture()
-    return stream
+  startRecording() {
+    return new Promise((resolve, reject) => {
+      if (!this._stream) return reject('No video stream')
+      if (this._fileStream) return reject('Already recording')
+
+      this._fileStream = fs.createWriteStream(path.resolve(__dirname, `video-${Date.now()}.h264`))
+      this._stream.pipe(this._fileStream)
+      resolve()
+    })
   }
 
-  async stopVideoStream() {
-    await this.stopCapture()
+  stopRecording() {
+    return new Promise(resolve => {
+      this._stream.unpipe(this._fileStream)
+      this._fileStream.end(() => {
+        this._fileStream = null
+        resolve()
+      })
+    })
   }
 }
 

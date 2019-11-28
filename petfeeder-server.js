@@ -9,13 +9,14 @@ const TransportBase = require('./transport/transport-base') // for constants
  */
 class PetfeederServer {
   /**
-   * @param {Object} device Instance of PetwantDevice or class with simillar functionality
+   * @param {Object} device Instance of PetwantDevice class or class with simillar functionality
    * @param {Array<Transport>} transports Array of provided transport objects of Transport class
    */
   constructor(device, transports) {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing server...`)
 
-    this._controlBelongsTo = null // { userId: 'id', transportClass: transportClassName }
+    this._connectedUsers = [] // [{ userId: 'id', transportClass: 'transportClassName' }]
+    this._controlBelongsTo = null // { userId: 'id', transportClass: 'transportClassName' }
     this._currentFeedingInProcess = false
     this._currentFeedingWasScheduled = false
     this._currentFeedingPortions = 0
@@ -23,8 +24,9 @@ class PetfeederServer {
     this._cachedSchedule = []
     this._hardwareButtonFeeding = false
     this._camera = null
-
+    this._cameraStreamSubscribers = [] // { userId: 'id', transportClass: 'transportClassName', stream: cameraStreamInstance }
     this._transportList = {} // { 'transportClassName': transportInstance }
+
     for (let transportInstance of transports)
       this._transportList[transportInstance.constructor.name] = transportInstance
 
@@ -151,61 +153,114 @@ class PetfeederServer {
     )
   }
 
+  _getConnectedUser(transportClass, userId) {
+    return this._connectedUsers.filter(user => user.userId === userId && user.transportClass == transportClass)[0]
+  }
+
+  _addConnectedUser(transportClass, userId) {
+    this._connectedUsers.push({
+      userId,
+      transportClass,
+    })
+  }
+
+  _removeConnectedUser(transportClass, userId) {
+    for (const userIndex in this._connectedUsers) {
+      const user = this._connectedUsers[userIndex]
+      if (user.userId === userId && user.transportClass === transportClass) {
+        this._connectedUsers.splice(userIndex, 1) // removing
+        break
+      }
+    }
+  }
+
+  _getCameraStreamSubscriber(transportClass, userId) {
+    return this._cameraStreamSubscribers.filter(
+      user => user.userId === userId && user.transportClass == transportClass
+    )[0]
+  }
+
+  _addCameraStreamSubscriber(transportClass, userId, eventCb) {
+    this._cameraStreamSubscribers.push({
+      userId,
+      transportClass,
+      eventCb,
+    })
+  }
+
+  _removeCameraStreamSubscriber(transportClass, userId) {
+    for (const userIndex in this._cameraStreamSubscribers) {
+      const user = this._cameraStreamSubscribers[userIndex]
+      if (user.userId === userId && user.transportClass === transportClass) {
+        this._cameraStreamSubscribers.splice(userIndex, 1) // removing
+        break
+      }
+    }
+  }
+
   /**
    * Remote procedure call handler
    * @param {String} path Full path to the resource to execute, for example: "device/feedManually"
    * @param {Array} args Arguments of the desired resource
    */
-  async onRpc(path, args) {
+  async onRpc(path, args, transportClass, userId) {
     if (!(args instanceof Array)) args = [args]
     const [resource, method] = path.split('/', 3).slice(1) // without 'rpc/' part
     if (
-      Object.keys(this._validRpcResources).indexOf(resource) !== -1 &&
-      this._validRpcResources[resource].methodsAllowed.indexOf(method) !== -1
-    ) {
-      // manual feeding hook for logging to the database
-      if (resource === 'device' && method === 'feedManually') {
-        if (this._currentFeedingInProcess) throw new Error('Feeding already in progress')
-        else this._currentFeedingInProcess = true
-        this._hardwareButtonFeeding = false
-        this._currentFeedingWasScheduled = false
-        this._currentFeedingPortions = args[0] // portions - 1st argument
-      }
+      Object.keys(this._validRpcResources).indexOf(resource) === -1 ||
+      this._validRpcResources[resource].methodsAllowed.indexOf(method) === -1
+    )
+      throw new InvalidRPCResourceException(path)
 
-      const result = await this._validRpcResources[resource].objectToCall[method](...args)
+    // hook for manual feeding - logging to the database
+    if (resource === 'device' && method === 'feedManually') {
+      if (this._currentFeedingInProcess) throw new Error('Feeding already in progress')
+      else this._currentFeedingInProcess = true
+      this._hardwareButtonFeeding = false
+      this._currentFeedingWasScheduled = false
+      this._currentFeedingPortions = args[0] // portions - 1st argument
+    }
 
-      // check if schedule was changed, need to update cached schedule then
-      if (resource === 'device' && (method === 'setScheduleEntry' || method === 'clearSchedule')) {
-        this._device
-          .getSchedule()
-          .then(schedule => {
-            this._cachedSchedule = schedule
-            console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cache renewed:`)
-            console.info(schedule)
-          })
-          .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on renew:`, err))
-      }
+    let result = null
+    if (resource === 'camera') {
+      // passing caller info for camera methods
+      result = await this._validRpcResources[resource].objectToCall[method](transportClass, userId)
+    } else {
+      // all other requests
+      result = await this._validRpcResources[resource].objectToCall[method](...args)
+    }
 
-      return result
-    } else throw new InvalidRPCResourceException(path)
+    // check if schedule was changed, need to update cached schedule then
+    if (resource === 'device' && (method === 'setScheduleEntry' || method === 'clearSchedule')) {
+      this._device
+        .getSchedule()
+        .then(schedule => {
+          this._cachedSchedule = schedule
+          console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cache renewed:`)
+          console.info(schedule)
+        })
+        .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on renew:`, err))
+    }
+
+    return result
   }
 
-  async onConnectionEvent(transportClass, userId, event, data) {
+  async onConnectionEvent(event, data, transportClass, userId) {
     switch (event) {
-      case TransportBase.EVENT_CONNECT:
+      case TransportBase.EVENT_TRANSPORT_CONNECT:
         if (!this._controlBelongsTo)
           this._controlBelongsTo = {
             userId,
             transportClass,
           }
 
+        this._addConnectedUser(transportClass, userId)
         break
-      case TransportBase.EVENT_DISCONNECT:
-        if (this._controlBelongsTo && this._controlBelongsTo.userId === userId) {
-          this._controlBelongsTo = null
-          if (this._camera) await this.stopVideoStream()
-          //TODO: transfer control to next connected user
-        }
+      case TransportBase.EVENT_TRANSPORT_DISCONNECT:
+        this._removeConnectedUser(transportClass, userId) // TODO: maybe one list of users
+        await this.stopVideoStream(transportClass, userId)
+
+        // TODO: transfer control rights to next connected user
         break
     }
   }
@@ -216,7 +271,7 @@ class PetfeederServer {
     switch (resourceType) {
       case 'rpc':
         console.info(`[${PetfeederServer.utcDate}][RPC] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
-        this.onRpc(event, data)
+        this.onRpc(event, data, transportClass, userId)
           .then(result => {
             this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
               transportClass,
@@ -240,7 +295,7 @@ class PetfeederServer {
         break
       case 'event':
         console.info(`[${PetfeederServer.utcDate}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
-        this.onConnectionEvent(transportClass, userId, event, data).catch(err => {
+        this.onConnectionEvent(event, data, transportClass, userId).catch(err => {
           console.error(
             `[${
               PetfeederServer.utcDate
@@ -292,39 +347,62 @@ class PetfeederServer {
     })
   }
 
-  async startVideoStream() {
-    if (this._camera) throw new Error('Camera already started')
-    // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
-    // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
-    this._camera = new Camera(config.camera)
+  // starting camera instance if not created yet and subscribing user to video stream
+  async startVideoStream(transportClass, userId) {
+    if (!this._camera) {
+      // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
+      // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
+      this._camera = new Camera(config.camera)
+      this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
+      this._camera.on('close', async () => {
+        this._device.powerLedBlinking = false
+        await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
+        await this._device.setPowerLedState(true)
+      })
 
-    this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera stream error:`, err))
-    const stream = await this._camera.startVideoStream()
+      console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
+    }
 
-    this._device.powerLedBlinking = true
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been started`)
-    //TODO: not for all but for subscribed only
-    stream.on('data', data =>
+    if (!this._camera.streaming) {
+      await this._camera.startCapture()
+      //await this._camera.startRecording()
+      this._device.powerLedBlinking = true
+    }
+
+    const eventCb = data => {
+      console.log(userId, data.length)
       this.emitTransportEvent(TransportBase.EVENT_CAMERA_H264DATA, {
-        transportClass: 'SocketIoTransport',
+        transportClass,
+        userId,
         data,
       })
-    )
+    }
+
+    const stream = this._camera.getStream()
+    stream.on('data', eventCb)
+    //this._addCameraStreamSubscriber(transportClass, userId, eventCb)
+    this._addCameraStreamSubscriber(transportClass, userId, stream)
+    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been started for:`, transportClass, userId)
   }
 
-  async stopVideoStream() {
-    if (!this._camera) return Promise.resolve()
+  // TODO: remove caller from subscriber and if last - stop camera
+  async stopVideoStream(transportClass, userId) {
+    const streamSubscriber = this._getCameraStreamSubscriber(transportClass, userId)
+    streamSubscriber.eventCb.removeAllListeners('data')
+    if (!streamSubscriber) return Promise.resolve()
 
-    this._camera.once('close', async () => {
-      this._device.powerLedBlinking = false
-      await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
-      await this._device.setPowerLedState(true)
-    })
+    this._removeCameraStreamSubscriber(transportClass, userId)
 
-    await this._camera.stopVideoStream()
-
-    this._camera = null
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera has been stopped`)
+    if (this._camera) {
+      //this._camera.stream.removeListener('data', streamSubscriber.eventCb) // .off was added in node v10
+      console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
+      if (this._cameraStreamSubscribers.length === 0) {
+        //await this._camera.stopRecording()
+        await this._camera.stopCapture()
+        this._camera = null
+        console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
+      }
+    }
   }
 
   // Setup and run

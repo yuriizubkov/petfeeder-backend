@@ -47,6 +47,10 @@ class TransportBase extends EventEmitter2 {
     )
   }
 
+  /**
+   * Disconnect user with userId
+   * @param userId
+   */
   disconnectUser(userId) {
     throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Promise'
