@@ -11,8 +11,8 @@ const { nf } = require('./utilities/helpers')
 class PetfeederServer {
   /**
    * @param {Object} device Instance of PetwantDevice class or class with simillar functionality
-   * @param {Object} authProvider Instance of AuthProvider class
-   * @param {Array<Transport>} transports Array of provided transport objects of Transport class
+   * @param {Object} authProvider Instance of AuthProviderBase class
+   * @param {Array<Transport>} transports Array of provided transport objects, instances of TransportBase class
    */
   constructor(device, authProvider, transports) {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing server...`)
