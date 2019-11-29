@@ -40,7 +40,7 @@ class PetfeederServer {
       },
       camera: {
         objectToCall: this,
-        methodsAllowed: ['startVideoStream', 'stopVideoStream'],
+        methodsAllowed: ['startVideoStream', 'stopVideoStream', 'takePicture'],
       },
       database: {
         objectToCall: DB,
@@ -318,7 +318,7 @@ class PetfeederServer {
   emitTransportEvent(event, eventConfig) {
     const { transportClass, userId, data } = eventConfig || {}
     return new Promise(resolve => {
-      if (event !== TransportBase.EVENT_CAMERA_H264DATA)
+      if (event !== TransportBase.EVENT_CAMERA_H264DATA && event !== TransportBase.EVENT_CAMERA_PICTUREDATA)
         console.info(
           `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
             ''} ${event} ${JSON.stringify(data)}`
@@ -346,6 +346,7 @@ class PetfeederServer {
   }
 
   // TODO: bug somewhere when your connection is not first, need to check how i am piping streams
+  // TODO: move camera methods to CameraProvider or something
   // starting camera instance if not created yet and subscribing user to video stream
   async startVideoStream(transportClass, userId) {
     if (!this._camera) {
@@ -393,6 +394,37 @@ class PetfeederServer {
 
     this._removeCameraStreamSubscriber(transportClass, userId)
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
+  }
+
+  async takePicture(transportClass, userId) {
+    if (this._camera) throw new Error('Camera is busy')
+
+    this._camera = new Camera(config.camera)
+    this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
+    this._camera.on('close', async () => {
+      this._device.powerLedBlinking = false
+      await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
+      await this._device.setPowerLedState(true)
+      this._camera = null
+      console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
+    })
+
+    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
+
+    const stream = await this._camera.takePicture()
+    stream.on('data', data => {
+      this.emitTransportEvent(TransportBase.EVENT_CAMERA_PICTUREDATA, {
+        transportClass,
+        userId,
+        data,
+      })
+    })
+
+    console.info(
+      `[${PetfeederServer.utcDate}][SERVER] Camera picture stream has been started for:`,
+      transportClass,
+      userId
+    )
   }
 
   // Setup and run

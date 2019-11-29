@@ -11,53 +11,77 @@ const path = require('path')
 class Camera extends EventEmitter {
   constructor(config) {
     super()
+    // All parameters: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
     const defaults = {
       width: 640,
       height: 480,
       framerate: 30,
       bitrate: 640000, // kBit is enough for 640x480 video https://comm.gatech.edu/resources/video/encoding
-      profile: 'baseline', // important! Broadway player will not work with another profile
       mode: 4,
+    }
+
+    // Assigning overridable settings
+    this._config = Object.assign(defaults, config)
+
+    // Not overridable settings
+    this._config = Object.assign(this._config, {
+      profile: 'baseline', // important! Broadway player will not work with another profile
       output: '-', // important! output to stdout stream
       nopreview: true, // no preview image
       timeout: 0, // important! work until explicitly been stopped
-    }
-
-    this._raspiArgs = Object.assign(defaults, config)
-    this._childProcess = null
-    this._streamSubscribers = []
-    this._fileStream = null
-    this._stream = new stream.Readable({
-      read: () => {},
     })
+
+    this._streaming = false
+    this._recording = false
+    this._takingPicture = false
+
+    this._childProcess = null
+    this._videoStreamSubscribers = []
+    this._fileStream = null
+    this._dataStream = null
 
     this._NAL_SEPARATOR = Buffer.from([0, 0, 0, 1]) //NAL h264 break
   }
 
   get streaming() {
-    return this._childProcess !== null
+    return this._streaming
   }
+
   get recording() {
-    return this._fileStream !== null
+    return this._recording
+  }
+
+  get takingPicture() {
+    return this._takingPicture
   }
 
   _createSplittedStream() {
     const splittedStream = new Splitter(this._NAL_SEPARATOR)
-    this._stream.pipe(splittedStream) // piping video stream to new stream
-    this._streamSubscribers.push(splittedStream) // holding reference to keep it alive
+    this._dataStream.pipe(splittedStream) // piping video stream to new stream
+    this._videoStreamSubscribers.push(splittedStream) // holding reference to keep it alive
     return splittedStream
   }
 
   _removeStream(stream) {
-    const indexOfStream = this._streamSubscribers.indexOf(stream)
+    const indexOfStream = this._videoStreamSubscribers.indexOf(stream)
     if (indexOfStream !== -1) {
-      this._stream.unpipe(stream) // unpiping stream from source video stream
+      this._dataStream.unpipe(stream) // unpiping stream from source video stream
       stream.end && stream.end()
-      this._streamSubscribers.splice(indexOfStream, 1) // not holding reference to this stream anymore
+      this._videoStreamSubscribers.splice(indexOfStream, 1) // not holding reference to this stream anymore
     }
   }
 
-  async stopCapture() {
+  _configToArgs(config) {
+    const args = []
+    Object.keys(config).forEach(key => {
+      args.push('--' + key)
+      if (typeof config[key] !== 'boolean') args.push(config[key])
+    })
+
+    return args
+  }
+
+  async _stopCapture() {
     if (this._childProcess) {
       this._childProcess.stdout.removeAllListeners('data')
       this._childProcess.kill()
@@ -65,25 +89,24 @@ class Camera extends EventEmitter {
     }
 
     // Push null to stream to indicate EOF
-    this._stream.push(null)
+    this._dataStream.push(null)
   }
 
-  startCapture() {
+  _startCapture(config, mode = 'video') {
     return new Promise((resolve, reject) => {
-      const args = []
-      Object.keys(this._raspiArgs).forEach(key => {
-        args.push('--' + key)
-        if (typeof this._raspiArgs[key] !== 'boolean') args.push(this._raspiArgs[key])
+      const args = this._configToArgs(config)
+
+      this._dataStream = new stream.Readable({
+        read: () => {},
       })
 
-      // Spawn child process
-      this._childProcess = spawn('raspivid', args)
+      this._childProcess = spawn(mode === 'video' ? 'raspivid' : 'raspistill', args)
 
       // Listen for error event to reject promise
       this._childProcess.once('error', err =>
         reject(
           new Error(
-            "Could not start capture with StreamCamera. Are you running on a Raspberry Pi with 'raspivid' installed?"
+            "Could not start capture with Camera. Are you running on a Raspberry Pi with 'raspivid' and 'raspistill' installed?"
           )
         )
       )
@@ -93,9 +116,9 @@ class Camera extends EventEmitter {
 
       // Listen for data event, delivering data to all streams
       this._childProcess.stdout.on('data', data => {
-        if (!this._stream.push(data)) {
+        if (!this._dataStream.push(data)) {
           this._childProcess.stdout.pause()
-          this._stream.once('drain', () => {
+          this._dataStream.once('drain', () => {
             this._childProcess.stdout.resume()
           })
         }
@@ -112,29 +135,71 @@ class Camera extends EventEmitter {
   }
 
   async startStreaming() {
-    if (!this.streaming) await this.startCapture()
+    if (!this.takePicture) throw new Error('Camera taking picture')
+    if (!this.streaming) {
+      await this._startCapture(this._config)
+      this._streaming = true
+    }
+
     return this._createSplittedStream()
   }
 
   async stopStreaming(stream) {
     this._removeStream(stream)
-    if (this._streamSubscribers.length === 0 && !this.recording) await this.stopCapture()
+    if (this._videoStreamSubscribers.length === 0 && !this.recording) {
+      await this._stopCapture()
+      this._streaming = false
+    }
   }
 
   async startRecording(fileName = `video-${Date.now()}.h264`) {
-    if (this.recording) return Promise.reject('Already recording')
-    if (!this.streaming) await this.startCapture()
+    if (!this.takePicture) throw new Error('Camera taking picture')
+    if (this.recording) throw new Error('Already recording')
+    if (!this.streaming) {
+      await this._startCapture(this._config)
+      this._recording = true
+    }
 
     this._fileStream = fs.createWriteStream(path.resolve(__dirname, fileName))
-    this._stream.pipe(this._fileStream)
+    this._dataStream.pipe(this._fileStream)
   }
 
   async stopRecording() {
     if (!this.recording) return Promise.resolve()
-    this._stream.unpipe(this._fileStream)
+    this._dataStream.unpipe(this._fileStream)
     this._fileStream.end()
     this._fileStream = null
-    if (this._streamSubscribers.length === 0) await this.stopCapture()
+    if (this._videoStreamSubscribers.length === 0) {
+      await this._stopCapture()
+      this._recording = false
+    }
+  }
+
+  async takePicture() {
+    if (this.takingPicture) throw new Error('Already taking picture')
+    if (this.recording) throw new Error('Camera in video recording mode')
+
+    const { width, height, output } = this._config
+    let config = {
+      width,
+      height,
+      output,
+    }
+
+    // Assigning not overridable settings
+    config = Object.assign(config, {
+      thumb: 'none',
+      timeout: 1,
+      encoding: 'jpg', // jpg is harware accelerated
+    })
+
+    await this._startCapture(config, 'picture')
+    this._takingPicture = true
+    this.once('close', () => {
+      this._takingPicture = false
+    })
+
+    return this._dataStream
   }
 }
 

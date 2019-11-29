@@ -37,6 +37,10 @@ class TransportBase extends EventEmitter2 {
     return 'event/camera/h264data'
   }
 
+  static get EVENT_CAMERA_PICTUREDATA() {
+    return 'event/camera/picturedata'
+  }
+
   static get EVENT_RESPONSE_SUFFIX() {
     return '/response'
   }
