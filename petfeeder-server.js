@@ -402,11 +402,13 @@ class PetfeederServer {
     this._camera = new Camera(config.camera)
     this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
     this._camera.on('close', async () => {
-      this._device.powerLedBlinking = false
-      await new Promise(resolve => setTimeout(() => resolve(), 100)) // TODO: powerLedBlinking should be setPowerLedBlinking(): Promise
-      await this._device.setPowerLedState(true)
       this._camera = null
       console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
+      this.emitTransportEvent(TransportBase.EVENT_CAMERA_PICTUREDATA, {
+        transportClass,
+        userId,
+        data: null, // to indicate end of transmission
+      })
     })
 
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)

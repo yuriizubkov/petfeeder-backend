@@ -179,19 +179,18 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Already taking picture')
     if (this.recording) throw new Error('Camera in video recording mode')
 
-    const { width, height, output } = this._config
-    let config = {
-      width,
-      height,
-      output,
-    }
-
     // Assigning not overridable settings
-    config = Object.assign(config, {
+    const config = Object.assign(this._config, {
       thumb: 'none',
-      timeout: 1,
+      timeout: 100, // 100 ms to warmup
       encoding: 'jpg', // jpg is harware accelerated
     })
+
+    // deleting video mode specific parameters
+    delete config.profile
+    delete config.framerate
+    delete config.bitrate
+    delete config.mode
 
     await this._startCapture(config, 'picture')
     this._takingPicture = true
