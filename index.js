@@ -2,6 +2,7 @@ const { resolve } = require('path')
 const history = require('connect-history-api-fallback')
 const express = require('express')
 const PetfeederServer = require('./petfeeder-server')
+const serverConfig = require('./petfeeder-server.json')
 const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
@@ -24,7 +25,7 @@ let device = null
 
 if (NODE_ENV === 'production') {
   const PetwantDevice = require('petwant-device')
-  device = new PetwantDevice()
+  device = new PetwantDevice(serverConfig.device)
 } else {
   const MockDevice = require('./mock-device')
   device = new MockDevice()
@@ -38,7 +39,7 @@ async function cleanup(sig) {
   try {
     await device.setLinkLedState(false)
     await device.setPowerLedState(false)
-  } catch (err) {}
+  } catch (err) {} // we don`t care about errors here, we just need to close this app ASAP :)
 
   device.destroy()
   mdnsAd && mdnsAd.stop()
