@@ -2,19 +2,16 @@ const low = require('lowdb')
 const FileAsync = require('lowdb/adapters/FileAsync')
 const path = require('path')
 const fs = require('fs')
+const { nf } = require('../utilities/helpers')
 
 class DataBase {
   static _getCurrentDbFilePath(dateUtc = new Date(Date.now())) {
-    function pad(number) {
-      return ('0' + number).slice(-2)
-    }
-
     return path.resolve(
       __dirname,
       'data',
       dateUtc.getUTCFullYear().toString(),
-      pad(dateUtc.getUTCMonth() + 1),
-      pad(dateUtc.getUTCDate()),
+      nf(dateUtc.getUTCMonth() + 1),
+      nf(dateUtc.getUTCDate()),
       'db.json'
     )
   }

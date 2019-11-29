@@ -6,17 +6,8 @@ const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
 
-const app = express()
-const { PORT = 80 } = process.env
-
-// UI
-const publicPath = resolve(__dirname, './web')
-const staticConf = { maxAge: '1y', etag: false }
-
-const staticMiddleware = express.static(publicPath, staticConf)
-app.use(staticMiddleware)
-app.use('/', history())
-app.use(staticMiddleware)
+const { PORT = 80 } = process.env // port for express app
+const app = null // express app for UI starting after main server
 
 // MDNS (Bonjour)
 let mdnsAd = null
@@ -28,9 +19,6 @@ console.log(packageConfig.name, packageConfig.version)
 // Detecting active environment
 const ENV = process.env.NODE_ENV || 'production'
 console.log('Environment set:', ENV)
-
-// Starting express server for UI
-app.listen(PORT, () => console.info(`[${PetfeederServer.utcDate}][SERVER] UI app is running on port ${PORT}`))
 
 // Device selection
 let device = null
@@ -97,4 +85,21 @@ server.run().then(() => {
 
   mdnsAd.start()
   console.info(`[${PetfeederServer.utcDate}][SERVER] Bonjour service has started`)
+
+  // express app for UI
+  app = express()
+
+  // UI dir
+  const publicPath = resolve(__dirname, './web')
+  const staticConf = { maxAge: '1y', etag: false }
+
+  const staticMiddleware = express.static(publicPath, staticConf)
+  app.use(staticMiddleware)
+  app.use('/', history()) // middleware for browser`s history mode
+  app.use(staticMiddleware)
+
+  // Starting express server for UI
+  app.listen(PORT, () => console.info(`[${PetfeederServer.utcDate}][SERVER] UI app is running on port ${PORT}`))
 })
+
+// let it crash here with error messages if something has not started properly

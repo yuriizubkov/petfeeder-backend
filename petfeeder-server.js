@@ -3,6 +3,7 @@ const config = require('./petfeeder-server.json')
 const DB = require('./database')
 const Camera = require('./hardware/camera')
 const TransportBase = require('./transport/transport-base') // for constants
+const { nf } = require('./utilities/helpers')
 
 /**
  * Server for DIY pet feeder
@@ -137,18 +138,14 @@ class PetfeederServer {
   }
 
   static get utcDate() {
-    function pad(number) {
-      return ('0' + number).slice(-2)
-    }
-
     const now = new Date(Date.now())
     return (
       `${now.getUTCFullYear()}` +
-      `.${pad(now.getUTCMonth() + 1)}` +
-      `.${pad(now.getUTCDate())} ` +
-      `${pad(now.getUTCHours())}` +
-      `:${pad(now.getUTCMinutes())}` +
-      `:${pad(now.getUTCSeconds())}` +
+      `.${nf(now.getUTCMonth() + 1)}` +
+      `.${nf(now.getUTCDate())} ` +
+      `${nf(now.getUTCHours())}` +
+      `:${nf(now.getUTCMinutes())}` +
+      `:${nf(now.getUTCSeconds())}` +
       `:${now.getUTCMilliseconds()} GMT`
     )
   }
