@@ -1,5 +1,5 @@
-const AuthProviderInterface = require('./auth-provider-interface')
+const AuthProviderBase = require('./auth-provider-base')
 
-class MockAuthProvider extends AuthProviderInterface {}
+class MockAuthProvider extends AuthProviderBase {}
 
 module.exports = MockAuthProvider

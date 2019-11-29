@@ -1,6 +1,6 @@
 const { MethodNotImplementedException } = require('../utilities/error-types')
 
-class AuthProviderInterface {
+class AuthProviderBase {
   constructor() {}
 
   authenticate(credentials) {
@@ -16,4 +16,4 @@ class AuthProviderInterface {
   }
 }
 
-module.exports = AuthProviderInterface
+module.exports = AuthProviderBase
