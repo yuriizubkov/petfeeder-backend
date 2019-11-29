@@ -6,8 +6,8 @@ const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
 
-const { PORT = 80 } = process.env // port for express app
-let app = null // express app for UI starting after main server
+const { PORT = 80, NODE_ENV = 'production' } = process.env // port - for express app
+let app = null // express app for UI starts after main server
 
 // MDNS (Bonjour)
 let mdnsAd = null
@@ -16,14 +16,13 @@ let mdnsAd = null
 const packageConfig = require('./package.json')
 console.log(packageConfig.name, packageConfig.version)
 
-// Detecting active environment
-const ENV = process.env.NODE_ENV || 'production'
-console.log('Environment set:', ENV)
+// Printing active environment
+console.log('Environment set:', NODE_ENV)
 
 // Device selection
 let device = null
 
-if (ENV === 'production') {
+if (NODE_ENV === 'production') {
   const PetwantDevice = require('petwant-device')
   device = new PetwantDevice()
 } else {
