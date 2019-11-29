@@ -1,7 +1,7 @@
-const { InvalidRPCResourceException } = require('./error-types')
+const { InvalidRPCResourceException } = require('./utilities/error-types')
 const config = require('./petfeeder-server.json')
 const DB = require('./database')
-const Camera = require('./camera')
+const Camera = require('./hardware/camera')
 const TransportBase = require('./transport/transport-base') // for constants
 
 /**
@@ -54,7 +54,7 @@ class PetfeederServer {
       },
     }
 
-    // Subscribing to transports`s events
+    // Subscribing to transport`s events
     for (const transportClass of Object.keys(this._transportList)) {
       console.info(`[${PetfeederServer.utcDate}][SERVER] Transport added:`, transportClass)
       this._transportList[transportClass].onAny((event, eventConfig) => this.onTransportEvent(event, eventConfig))
@@ -347,6 +347,7 @@ class PetfeederServer {
     })
   }
 
+  // TODO: bug somewhere when your connection is not first, need to check how i am piping streams
   // starting camera instance if not created yet and subscribing user to video stream
   async startVideoStream(transportClass, userId) {
     if (!this._camera) {

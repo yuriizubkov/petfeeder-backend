@@ -5,7 +5,7 @@ const {
   GPIOSetupNotCompletedException,
   UARTNotConnectedException,
   InvalidParameterException,
-} = require('../error-types')
+} = require('../utilities/error-types')
 
 /**
  * Purpose of this class - to be able to develop software without access to the actual device.

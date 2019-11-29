@@ -1,4 +1,4 @@
-const { MethodNotImplementedException } = require('../error-types')
+const { MethodNotImplementedException } = require('../utilities/error-types')
 
 class AuthProviderInterface {
   constructor() {}
