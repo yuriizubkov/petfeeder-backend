@@ -69,7 +69,7 @@ async function cleanup(sig) {
 
 // Setup server
 const auth = new Auth.MockAuthProvider()
-const server = new PetfeederServer(device, [new Transport.SocketIoTransport(auth)])
+const server = new PetfeederServer(device, auth, [new Transport.SocketIoTransport()])
 
 // Run server
 server.run().then(() => {
