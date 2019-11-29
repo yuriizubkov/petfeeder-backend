@@ -7,7 +7,7 @@ const Transport = require('./transport')
 const Auth = require('./auth')
 
 const { PORT = 80 } = process.env // port for express app
-const app = null // express app for UI starting after main server
+let app = null // express app for UI starting after main server
 
 // MDNS (Bonjour)
 let mdnsAd = null
