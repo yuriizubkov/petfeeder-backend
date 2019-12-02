@@ -44,7 +44,7 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['getEvents'],
+        methodsAllowed: ['getEvents', 'getAllDates'],
       },
       wifi: {
         objectToCall: null, // not implemented
@@ -396,6 +396,7 @@ class PetfeederServer {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
   }
 
+  // TODO: blink indicator
   async takePicture(transportClass, userId) {
     if (this._camera) throw new Error('Camera is busy')
 

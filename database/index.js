@@ -5,67 +5,65 @@ const fs = require('fs')
 const { nf } = require('../utilities/helpers')
 
 class DataBase {
+  static get DATA_DIR_NAME() {
+    return 'data'
+  }
+
+  static get DATA_FILE_NAME() {
+    return 'db.json'
+  }
+
+  static get COLLECTION_EVENTS() {
+    return 'events'
+  }
+
+  static get COLLECTION_GALLERY() {
+    return 'gallery'
+  }
+
   static _getCurrentDbFilePath(dateUtc = new Date(Date.now())) {
+    if (!(dateUtc instanceof Date) || isNaN(dateUtc.getTime())) throw new Error('Invalid date')
     return path.resolve(
       __dirname,
-      'data',
+      DataBase.DATA_DIR_NAME,
       dateUtc.getUTCFullYear().toString(),
       nf(dateUtc.getUTCMonth() + 1),
       nf(dateUtc.getUTCDate()),
-      'db.json'
+      DataBase.DATA_FILE_NAME
     )
   }
 
-  static async _createPathIfNotExist(filePath) {
+  static _createPathIfNotExist(filePath) {
     return new Promise((resolve, reject) => {
       // recursive option for mkdir was introduced in node v10.12
-      // so we have to have workaround for later versions
-      // https://stackoverflow.com/questions/28498296/enoent-no-such-file-or-directory-on-fs-mkdirsync
-      // https://stackoverflow.com/questions/6656324/check-for-current-node-version
-      // https://gist.github.com/bpedro/742162
-
-      const splittedVersion = process.versions.node.split('.')
-      const NODE_MAJOR_VERSION = splittedVersion[0]
-      const NODE_MINOR_VERSION = splittedVersion[1]
-
+      // so we have to have workaround for other versions
       const dirPath = path.dirname(filePath)
+      const mkdirp = dir =>
+        path
+          .resolve(dir)
+          .split(path.sep)
+          .reduce((acc, cur) => {
+            const currentPath = path.normalize(acc + path.sep + cur)
+            try {
+              fs.statSync(currentPath)
+            } catch (e) {
+              if (e.code === 'ENOENT') {
+                fs.mkdirSync(currentPath)
+              } else return reject(e)
+            }
 
-      if (NODE_MAJOR_VERSION >= 10 && NODE_MINOR_VERSION >= 12) {
-        fs.access(filePath, fs.constants.F_OK, err => {
-          if (!err) return resolve() // file exists
-          fs.mkdir(dirPath, { recursive: true }, err => {
-            err ? reject(err) : resolve()
-          })
-        })
-      } else {
-        const mkdirp = dir =>
-          path
-            .resolve(dir)
-            .split(path.sep)
-            .reduce((acc, cur) => {
-              const currentPath = path.normalize(acc + path.sep + cur)
-              try {
-                fs.statSync(currentPath)
-              } catch (e) {
-                if (e.code === 'ENOENT') {
-                  fs.mkdirSync(currentPath)
-                } else {
-                  throw e
-                }
-              }
-              return currentPath
-            }, '')
+            return currentPath
+          }, '')
 
-        fs.access(filePath, fs.constants.F_OK, err => {
-          if (!err) return resolve() // file exists
-          mkdirp(dirPath)
-          resolve()
-        })
-      }
+      fs.access(filePath, fs.constants.F_OK, err => {
+        if (!err) return resolve() // file exists
+        mkdirp(dirPath)
+        resolve()
+      })
     })
   }
 
-  static async _getAdapter(utcDate = new Date(Date.now())) {
+  static async _getAdapterByDate(utcDate = new Date(Date.now())) {
     const filePath = DataBase._getCurrentDbFilePath(utcDate)
     await DataBase._createPathIfNotExist(filePath)
     const adapter = new FileAsync(filePath)
@@ -74,14 +72,22 @@ class DataBase {
     return db
   }
 
+  static async _getAdapterByPath(filePath) {
+    await DataBase._createPathIfNotExist(filePath)
+    const adapter = new FileAsync(filePath)
+    const db = await low(adapter)
+    await db.defaults({ events: [], gallery: [] }).write()
+    return db
+  }
+
   static async get(collection = 'events', utcDate = new Date(Date.now())) {
-    const db = await DataBase._getAdapter(utcDate)
+    const db = await DataBase._getAdapterByDate(utcDate)
     const result = await db.get(collection).value()
     return result
   }
 
   static async push(dbObject, collection = 'events') {
-    const db = await DataBase._getAdapter()
+    const db = await DataBase._getAdapterByDate()
     await db
       .get(collection)
       .push(dbObject)
@@ -98,8 +104,43 @@ class DataBase {
 
   static async getEvents(year, month, date) {
     const utcDate = new Date(Date.UTC(year, month - 1, date))
-    const events = await DataBase.get('events', utcDate)
+    const events = await DataBase.get(DataBase.COLLECTION_EVENTS, utcDate)
     return events
+  }
+
+  static async getAllDates() {
+    // reading "./data" directory recursive and getting dates object from dir names
+    const getDatePart = async (rootPath, level = 1) => {
+      if (level > 3) return {} // should be less than 3 levels: year, month, date folders
+      const files = fs.readdirSync(rootPath)
+      let objToSet = {}
+      for (const file of files) {
+        const filePath = path.resolve(rootPath, file)
+        const stats = fs.statSync(filePath)
+        if (stats.isDirectory()) {
+          const numberPart = parseInt(file) // year, month or date
+          objToSet[numberPart] = await getDatePart(filePath, level + 1)
+
+          if (level === 3) {
+            const dbPath = path.resolve(filePath, DataBase.DATA_FILE_NAME)
+            const db = await DataBase._getAdapterByPath(dbPath)
+            const dbState = await db.getState()
+
+            // counters
+            objToSet[numberPart] = {
+              events: dbState.events.length,
+              gallery: dbState.gallery.length,
+            }
+          }
+        }
+      }
+
+      return objToSet
+    }
+
+    const rootDataPath = path.resolve(__dirname, DataBase.DATA_DIR_NAME) // "./data" dir path
+    const dates = await getDatePart(rootDataPath)
+    return dates
   }
 }
 
