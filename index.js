@@ -25,7 +25,15 @@ let device = null
 
 if (NODE_ENV === 'production') {
   const PetwantDevice = require('petwant-device')
-  device = new PetwantDevice(serverConfig.device)
+  const cf = serverConfig.device
+  // constructor(uartPortName, powerLedGPIOPin, linkLedGPIOPin, buttonGPIOPin, maxTimeDriftSeconds)
+  device = new PetwantDevice(
+    cf.uartPortName,
+    cf.powerLedGPIOPin,
+    cf.linkLedGPIOPin,
+    cf.buttonGPIOPin,
+    cf.maxTimeDriftSeconds
+  )
 } else {
   const MockDevice = require('./mock-device')
   device = new MockDevice()

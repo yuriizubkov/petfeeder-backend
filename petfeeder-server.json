@@ -1,5 +1,11 @@
 {
-  "device": {},
+  "device": {
+    "uartPortName": "/dev/serial0",
+    "powerLedGPIOPin": 16,
+    "linkLedGPIOPin": 18,
+    "buttonGPIOPin": 22,
+    "maxTimeDriftSeconds": 10
+  },
   "camera": {
     "video": {
       "colfx": "128:128",
