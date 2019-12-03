@@ -352,7 +352,7 @@ class PetfeederServer {
     if (!this._camera) {
       // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
       // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
-      this._camera = new Camera(config.camera)
+      this._camera = new Camera(config.camera.video)
       this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
       this._camera.on('close', async () => {
         // if (this._camera.recording) await this._camera.stopRecording()
@@ -400,7 +400,7 @@ class PetfeederServer {
   async takePicture(transportClass, userId) {
     if (this._camera) throw new Error('Camera is busy')
 
-    this._camera = new Camera(config.camera)
+    this._camera = new Camera(config.camera.photo)
     this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
     this._camera.on('close', async () => {
       this._camera = null

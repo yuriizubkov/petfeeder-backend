@@ -179,6 +179,7 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Already taking picture')
     if (this.recording) throw new Error('Camera in video recording mode')
 
+    // All parameters: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
     // Assigning not overridable settings
     const config = Object.assign(this._config, {
       thumb: 'none',

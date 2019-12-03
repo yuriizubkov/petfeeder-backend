@@ -108,6 +108,7 @@ class DataBase {
     return events
   }
 
+  // TODO: need some caching mechanism
   static async getAllDates() {
     // reading "./data" directory recursive and getting dates object from dir names
     const getDatePart = async (rootPath, level = 1) => {
