@@ -396,12 +396,21 @@ class PetfeederServer {
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
   }
 
-  // TODO: blink indicator
   async takePicture(transportClass, userId) {
-    if (this._camera) throw new Error('Camera is busy')
+    if (this._camera && (this._camera.recording || this._camera.streaming))
+      throw new Error('Can not take picture, camera in video mode at the moment')
+
+    if (this._camera && this._camera.takingPicture)
+      throw new Error('Can not take picture, camera already taking picture')
+    
+    await this.device.setPowerLedState(false)
 
     this._camera = new Camera(config.camera)
-    this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
+    this._camera.on('error', err => {
+      console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
+      await this.device.setPowerLedState(true)
+    })
+
     this._camera.on('close', async () => {
       this._camera = null
       console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
@@ -410,6 +419,8 @@ class PetfeederServer {
         userId,
         data: null, // to indicate end of transmission
       })
+
+      await this.device.setPowerLedState(true)
     })
 
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
