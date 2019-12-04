@@ -163,8 +163,8 @@ class Camera extends EventEmitter {
   async startStreaming() {
     if (this.takingPicture) throw new Error('Can not stream video, camera is taking photo at the moment')
     if (!this.streaming) {
-      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
       this._streaming = true
+      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
     }
 
     return this._createSplittedStream()
@@ -182,8 +182,8 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
     if (!this.streaming) {
-      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
       this._recording = true
+      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
     }
 
     this._fileStream = fs.createWriteStream(path.resolve(__dirname, fileName))
@@ -206,8 +206,8 @@ class Camera extends EventEmitter {
     if (this.streaming) throw new Error('Can not take a photo, camera is streaming video at the moment')
     if (this.recording) throw new Error('Can not take a photo, camera is recording video at the moment')
 
-    await this._startCapture(this._photoConfig, this.MODE_PHOTO)
     this._takingPicture = true
+    await this._startCapture(this._photoConfig, this.MODE_PHOTO)
     this.once('close', () => {
       this._takingPicture = false
     })
