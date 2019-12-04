@@ -84,7 +84,7 @@ class Camera extends EventEmitter {
     const args = []
     Object.keys(config).forEach(key => {
       args.push('--' + key)
-      if (typeof config[key] !== 'boolean') args.push(config[key])
+      if (typeof config[key] !== 'boolean' && config[key] === true) args.push(config[key])
     })
 
     return args
