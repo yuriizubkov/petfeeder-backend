@@ -403,12 +403,12 @@ class PetfeederServer {
     if (this._camera && this._camera.takingPicture)
       throw new Error('Can not take picture, camera already taking picture')
 
-    await this.device.setPowerLedState(false)
+    await this._device.setPowerLedState(false)
 
     this._camera = new Camera(config.camera)
     this._camera.on('error', async err => {
       console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
-      await this.device.setPowerLedState(true)
+      await this._device.setPowerLedState(true)
     })
 
     this._camera.on('close', async () => {
@@ -420,7 +420,7 @@ class PetfeederServer {
         data: null, // to indicate end of transmission
       })
 
-      await this.device.setPowerLedState(true)
+      await this._device.setPowerLedState(true)
     })
 
     console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
