@@ -499,14 +499,11 @@ class PetfeederServer {
   async startRecording() {
     const fileName = `video-${Date.now()}.h264`
     const filePath = path.resolve(DB.currentDbDir, fileName)
-
     const camera = this._getCamera()
-    // camera.prependListener('close', () => {
-    //   console.log('Recording stopped, saving here')
-    // })
 
     await camera.startRecording(filePath)
     console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been started:`, filePath)
+    this._device.powerLedBlinking = true
     return fileName
   }
 
