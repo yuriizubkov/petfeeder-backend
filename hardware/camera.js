@@ -26,17 +26,17 @@ class Camera extends EventEmitter {
     // Not overridable video settings
     this._videoConfig = Object.assign(this._videoConfig, {
       profile: 'baseline', // important! Broadway player will not work with another profile
-      output: '-', // important! output to stdout stream
       nopreview: true, // no preview image
       timeout: 0, // important! work until explicitly been stopped
+      output: '"-"', // important! output to stdout stream
     })
 
     // Assigning not overridable settings
     this._photoConfig = Object.assign(config.photo, {
       thumb: 'none', // we don`t need thumbnail for streaming photo
+      encoding: 'jpg', // jpg is hardware accelerated
       timeout: 100, // 100 ms to warmup
-      encoding: 'jpg', // jpg is harware accelerated
-      output: '-', // important! output to stdout stream
+      output: '"-"', // important! output to stdout stream
     })
 
     // private variables
@@ -144,7 +144,7 @@ class Camera extends EventEmitter {
   }
 
   async startStreaming() {
-    if (!this.takingPicture) throw new Error('Camera taking picture')
+    if (!this.takingPicture) throw new Error('Can not stream video, camera is taking photo at the moment')
     if (!this.streaming) {
       await this._startCapture(this._videoConfig)
       this._streaming = true
@@ -162,7 +162,7 @@ class Camera extends EventEmitter {
   }
 
   async startRecording(fileName = `video-${Date.now()}.h264`) {
-    if (!this.takingPicture) throw new Error('Camera taking picture')
+    if (!this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
     if (!this.streaming) {
       await this._startCapture(this._videoConfig)
@@ -186,7 +186,8 @@ class Camera extends EventEmitter {
 
   async takePicture() {
     if (this.takingPicture) throw new Error('Already taking picture')
-    if (this.recording) throw new Error('Camera in video recording mode')
+    if (this.streaming) throw new Error('Can not take a photo, camera is streaming video at the moment')
+    if (this.recording) throw new Error('Can not take a photo, camera is recording video at the moment')
 
     await this._startCapture(this._photoConfig, 'picture')
     this._takingPicture = true
