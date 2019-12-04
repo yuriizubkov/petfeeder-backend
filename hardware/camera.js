@@ -144,7 +144,7 @@ class Camera extends EventEmitter {
   }
 
   async startStreaming() {
-    if (!this.takingPicture) throw new Error('Can not stream video, camera is taking photo at the moment')
+    if (this.takingPicture) throw new Error('Can not stream video, camera is taking photo at the moment')
     if (!this.streaming) {
       await this._startCapture(this._videoConfig)
       this._streaming = true
@@ -162,7 +162,7 @@ class Camera extends EventEmitter {
   }
 
   async startRecording(fileName = `video-${Date.now()}.h264`) {
-    if (!this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
+    if (this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
     if (!this.streaming) {
       await this._startCapture(this._videoConfig)
