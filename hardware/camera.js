@@ -12,7 +12,7 @@ class Camera extends EventEmitter {
   constructor(config) {
     super()
     // All parameters: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
-    const defaults = {
+    const videoDefaults = {
       width: 640,
       height: 480,
       framerate: 30,
@@ -20,17 +20,26 @@ class Camera extends EventEmitter {
       mode: 4,
     }
 
-    // Assigning overridable settings
-    this._config = Object.assign(defaults, config)
+    // Assigning overridable video settings
+    this._videoConfig = Object.assign(videoDefaults, config.video)
 
-    // Not overridable settings
-    this._config = Object.assign(this._config, {
+    // Not overridable video settings
+    this._videoConfig = Object.assign(this._videoConfig, {
       profile: 'baseline', // important! Broadway player will not work with another profile
       output: '-', // important! output to stdout stream
       nopreview: true, // no preview image
       timeout: 0, // important! work until explicitly been stopped
     })
 
+    // Assigning not overridable settings
+    this._photoConfig = Object.assign(config.photo, {
+      thumb: 'none', // we don`t need thumbnail for streaming photo
+      timeout: 100, // 100 ms to warmup
+      encoding: 'jpg', // jpg is harware accelerated
+      output: '-', // important! output to stdout stream
+    })
+
+    // private variables
     this._streaming = false
     this._recording = false
     this._takingPicture = false
@@ -137,7 +146,7 @@ class Camera extends EventEmitter {
   async startStreaming() {
     if (!this.takePicture) throw new Error('Camera taking picture')
     if (!this.streaming) {
-      await this._startCapture(this._config)
+      await this._startCapture(this._videoConfig)
       this._streaming = true
     }
 
@@ -156,7 +165,7 @@ class Camera extends EventEmitter {
     if (!this.takePicture) throw new Error('Camera taking picture')
     if (this.recording) throw new Error('Already recording')
     if (!this.streaming) {
-      await this._startCapture(this._config)
+      await this._startCapture(this._videoConfig)
       this._recording = true
     }
 
@@ -179,21 +188,7 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Already taking picture')
     if (this.recording) throw new Error('Camera in video recording mode')
 
-    // All parameters: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
-    // Assigning not overridable settings
-    const config = Object.assign(this._config, {
-      thumb: 'none',
-      timeout: 100, // 100 ms to warmup
-      encoding: 'jpg', // jpg is harware accelerated
-    })
-
-    // deleting video mode specific parameters
-    delete config.profile
-    delete config.framerate
-    delete config.bitrate
-    delete config.mode
-
-    await this._startCapture(config, 'picture')
+    await this._startCapture(this._photoConfig, 'picture')
     this._takingPicture = true
     this.once('close', () => {
       this._takingPicture = false
