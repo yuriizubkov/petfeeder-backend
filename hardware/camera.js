@@ -11,7 +11,7 @@ const path = require('path')
 class Camera extends EventEmitter {
   constructor(config) {
     super()
-    // All parameters: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
+    // Video defaults. All parameters here: https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
     const videoDefaults = {
       width: 640,
       height: 480,
@@ -28,15 +28,24 @@ class Camera extends EventEmitter {
       profile: 'baseline', // important! Broadway player will not work with another profile
       nopreview: true, // no preview image
       timeout: 0, // important! work until explicitly been stopped
-      output: '"-"', // important! output to stdout stream
+      output: '-', // important! output to stdout stream
     })
 
+    // Photo defaults
+    const photoDefaults = {
+      width: 640,
+      height: 480,
+    }
+
+    // Assigning overridable photo settings
+    this._photoConfig = Object.assign(photoDefaults, config.photo)
+
     // Assigning not overridable settings
-    this._photoConfig = Object.assign(config.photo, {
+    this._photoConfig = Object.assign(this._photoConfig, {
       thumb: 'none', // we don`t need thumbnail for streaming photo
       encoding: 'jpg', // jpg is hardware accelerated
       timeout: 100, // 100 ms to warmup
-      output: '"-"', // important! output to stdout stream
+      output: '-', // important! output to stdout stream
     })
 
     // private variables
@@ -50,6 +59,14 @@ class Camera extends EventEmitter {
     this._dataStream = null
 
     this._NAL_SEPARATOR = Buffer.from([0, 0, 0, 1]) //NAL h264 break
+  }
+
+  get MODE_VIDEO() {
+    return 'raspivid'
+  }
+
+  get MODE_PHOTO() {
+    return 'raspistill'
   }
 
   get streaming() {
@@ -101,7 +118,7 @@ class Camera extends EventEmitter {
     this._dataStream.push(null)
   }
 
-  _startCapture(config, mode = 'video') {
+  _startCapture(config, mode) {
     return new Promise((resolve, reject) => {
       const args = this._configToArgs(config)
 
@@ -109,7 +126,7 @@ class Camera extends EventEmitter {
         read: () => {},
       })
 
-      this._childProcess = spawn(mode === 'video' ? 'raspivid' : 'raspistill', args)
+      this._childProcess = spawn(mode, args)
 
       // Listen for error event to reject promise
       this._childProcess.once('error', err =>
@@ -146,7 +163,7 @@ class Camera extends EventEmitter {
   async startStreaming() {
     if (this.takingPicture) throw new Error('Can not stream video, camera is taking photo at the moment')
     if (!this.streaming) {
-      await this._startCapture(this._videoConfig)
+      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
       this._streaming = true
     }
 
@@ -165,7 +182,7 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
     if (!this.streaming) {
-      await this._startCapture(this._videoConfig)
+      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
       this._recording = true
     }
 
@@ -189,7 +206,7 @@ class Camera extends EventEmitter {
     if (this.streaming) throw new Error('Can not take a photo, camera is streaming video at the moment')
     if (this.recording) throw new Error('Can not take a photo, camera is recording video at the moment')
 
-    await this._startCapture(this._photoConfig, 'picture')
+    await this._startCapture(this._photoConfig, 'picture', this.MODE_PHOTO)
     this._takingPicture = true
     this.once('close', () => {
       this._takingPicture = false
