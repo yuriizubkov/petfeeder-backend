@@ -113,6 +113,16 @@ class DataBase {
     })
   }
 
+  static async pushGallery(fileName) {
+    await DataBase.push(
+      {
+        timestamp: Date.now(), // timestamp UTC
+        fileName,
+      },
+      DataBase.COLLECTION_GALLERY
+    )
+  }
+
   static async getEvents(year, month, date) {
     const utcDate = new Date(Date.UTC(year, month - 1, date))
     const events = await DataBase.get(DataBase.COLLECTION_EVENTS, utcDate)

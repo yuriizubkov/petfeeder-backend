@@ -178,15 +178,13 @@ class Camera extends EventEmitter {
     }
   }
 
-  async startRecording(fileName = `video-${Date.now()}.h264`) {
+  async startRecording(filePath = `video-${Date.now()}.h264`) {
     if (this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
-    if (!this.streaming) {
-      this._recording = true
-      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
-    }
+    this._recording = true
+    if (!this.streaming) await this._startCapture(this._videoConfig, this.MODE_VIDEO)
 
-    this._fileStream = fs.createWriteStream(path.resolve(__dirname, fileName))
+    this._fileStream = fs.createWriteStream(filePath)
     this._dataStream.pipe(this._fileStream)
   }
 
@@ -195,10 +193,8 @@ class Camera extends EventEmitter {
     this._dataStream.unpipe(this._fileStream)
     this._fileStream.end()
     this._fileStream = null
-    if (this._videoStreamSubscribers.length === 0) {
-      await this._stopCapture()
-      this._recording = false
-    }
+    this._recording = false
+    if (this._videoStreamSubscribers.length === 0) await this._stopCapture()
   }
 
   async takePicture() {

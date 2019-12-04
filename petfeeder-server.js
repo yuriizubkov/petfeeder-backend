@@ -4,6 +4,7 @@ const DB = require('./database')
 const Camera = require('./hardware/camera')
 const TransportBase = require('./transport/transport-base') // for event names constants
 const { nf } = require('./utilities/helpers')
+const path = require('path')
 
 /**
  * Server for DIY pet feeder
@@ -15,7 +16,7 @@ class PetfeederServer {
    * @param {Array<Transport>} transports Array of provided transport objects, instances of TransportBase class
    */
   constructor(device, authProvider, transports) {
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing server...`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Initializing server...`)
 
     this._connectedUsers = [] // [{ userId: 'id', transportClass: 'transportClassName' }]
     this._controlBelongsTo = null // { userId: 'id', transportClass: 'transportClassName' }
@@ -58,29 +59,34 @@ class PetfeederServer {
 
     // Subscribing to transport`s events
     for (const transportClass of Object.keys(this._transportList)) {
-      console.info(`[${PetfeederServer.utcDate}][SERVER] Transport added:`, transportClass)
+      console.info(`[${PetfeederServer.utcDateString}][SERVER] Transport added:`, transportClass)
       this._transportList[transportClass].onAny((event, eventConfig) => this.onTransportEvent(event, eventConfig))
     }
 
     // Setup device
-    this._device.on('buttondown', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button down event`))
-    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDate}][DEVICE] Button up event`))
+    this._device.on('buttondown', () => console.info(`[${PetfeederServer.utcDateString}][DEVICE] Button down event`))
+    this._device.on('buttonup', () => console.info(`[${PetfeederServer.utcDateString}][DEVICE] Button up event`))
 
     this._device.on('buttonlongpress', pressedTime => {
-      console.info(`[${PetfeederServer.utcDate}][DEVICE] Button long press event with pressed time (ms):`, pressedTime)
+      console.info(
+        `[${PetfeederServer.utcDateString}][DEVICE] Button long press event with pressed time (ms):`,
+        pressedTime
+      )
       this._device.linkLedBlinking = !this._device.linkLedBlinking
       // TODO: toggle bluetooth on/off
     })
 
     this._device.on('clocksynchronized', () => {
-      console.info(`[${PetfeederServer.utcDate}][DEVICE] Clock synchronization event`)
+      console.info(`[${PetfeederServer.utcDateString}][DEVICE] Clock synchronization event`)
       this.emitTransportEvent(TransportBase.EVENT_DEVICE_CLOCKSYNCHRONIZED)
 
-      DB.pushEvent('clocksync').catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
+      DB.pushEvent('clocksync').catch(err =>
+        console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
+      )
     })
 
     this._device.on('scheduledfeedingstarted', entryData => {
-      console.info(`[${PetfeederServer.utcDate}][DEVICE] Scheduled feeding started event:`, entryData)
+      console.info(`[${PetfeederServer.utcDateString}][DEVICE] Scheduled feeding started event:`, entryData)
       this._currentFeedingInProcess = true
       // if hardware button was pressed entryData = { entryIndex: 0, soundIndex: 6}
       if (entryData.entryIndex === 0) {
@@ -98,12 +104,31 @@ class PetfeederServer {
       }
 
       this.emitTransportEvent(TransportBase.EVENT_DEVICE_FEEDINGSTARTED, { data: entryData })
+
+      // Starting recording video only on auto feeding
+      if (!this._hardwareButtonFeeding)
+        this.startRecording()
+          .then(fileName => {
+            DB.pushGallery(fileName).catch(err => {
+              console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
+            })
+
+            // Stop recording video on timer
+            setTimeout(() => {
+              this.stopRecording().catch(err => {
+                console.error(`[${PetfeederServer.utcDateString}][ERROR] Video recording stop error:`, err)
+              })
+            }, 30000) // 30 seconds - TODO: move to configuration
+          })
+          .catch(err => {
+            console.error(`[${PetfeederServer.utcDateString}][ERROR] Video recording start error:`, err)
+          })
     })
 
     this._device.on('feedingcomplete', motorRevolutions => {
       this._currentFeedingInProcess = false
       console.info(
-        `[${PetfeederServer.utcDate}][DEVICE] Feeding complete event with motor revolutions done:`,
+        `[${PetfeederServer.utcDateString}][DEVICE] Feeding complete event with motor revolutions done:`,
         motorRevolutions
       )
 
@@ -118,7 +143,7 @@ class PetfeederServer {
       if (this._hardwareButtonFeeding) eventData.hardwareButtonPressed = true
 
       DB.pushEvent('feeding', eventData).catch(err =>
-        console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err)
+        console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
       )
 
       if (motorRevolutions < this._currentFeedingPortions)
@@ -126,22 +151,22 @@ class PetfeederServer {
     })
 
     this._device.on('unknownmessage', data => {
-      console.warn(`[${PetfeederServer.utcDate}][DEVICE] Unknown Message received event:`, data)
+      console.warn(`[${PetfeederServer.utcDateString}][DEVICE] Unknown Message received event:`, data)
     })
 
     this._device.on('warningnofood', () => {
-      console.warn(`[${PetfeederServer.utcDate}][DEVICE] No food event!`)
+      console.warn(`[${PetfeederServer.utcDateString}][DEVICE] No food event!`)
       this.emitTransportEvent(TransportBase.EVENT_DEVICE_WARNINGNOFOOD)
       DB.pushEvent('warning', {
         type: 'nofood',
-      }).catch(err => console.error(`[${PetfeederServer.utcDate}][ERROR] Database error:`, err))
+      }).catch(err => console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err))
     })
   }
 
   /**
    * Current Date in UTC
    */
-  static get utcDate() {
+  static get utcDateString() {
     const now = new Date(Date.now())
     return (
       `${now.getUTCFullYear()}` +
@@ -237,10 +262,10 @@ class PetfeederServer {
         .getSchedule()
         .then(schedule => {
           this._cachedSchedule = schedule
-          console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cache renewed:`)
+          console.info(`[${PetfeederServer.utcDateString}][SERVER] Schedule cache renewed:`)
           console.info(schedule)
         })
-        .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on renew:`, err))
+        .catch(err => console.error(`[${PetfeederServer.utcDateString}][SERVER] Error reading schedule on renew:`, err))
     }
 
     return result
@@ -276,7 +301,9 @@ class PetfeederServer {
     const { transportClass, userId, data } = eventConfig || {}
     switch (resourceType) {
       case 'rpc':
-        console.info(`[${PetfeederServer.utcDate}][RPC] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
+        console.info(
+          `[${PetfeederServer.utcDateString}][RPC] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`
+        )
         this.onRpc(event, data, transportClass, userId)
           .then(result => {
             this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
@@ -287,9 +314,9 @@ class PetfeederServer {
           })
           .catch(err => {
             console.error(
-              `[${PetfeederServer.utcDate}][ERROR] RPC error ${transportClass} ${userId} ${event} ${JSON.stringify(
-                data
-              )}`,
+              `[${
+                PetfeederServer.utcDateString
+              }][ERROR] RPC error ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`,
               err
             )
             this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
@@ -300,11 +327,13 @@ class PetfeederServer {
           })
         break
       case 'event':
-        console.info(`[${PetfeederServer.utcDate}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`)
+        console.info(
+          `[${PetfeederServer.utcDateString}][EVENT] ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`
+        )
         this.onConnectionEvent(event, data, transportClass, userId).catch(err => {
           console.error(
             `[${
-              PetfeederServer.utcDate
+              PetfeederServer.utcDateString
             }][EVENT] Transport event error: ${transportClass} ${userId} ${event} ${JSON.stringify(data)}`,
             err
           )
@@ -312,7 +341,7 @@ class PetfeederServer {
         break
       default:
         console.error(
-          `[${PetfeederServer.utcDate}][ERROR] Invalid resource ${transportClass} ${userId} ${event} ${data}`
+          `[${PetfeederServer.utcDateString}][ERROR] Invalid resource ${transportClass} ${userId} ${event} ${data}`
         )
         this.emitTransportEvent(event + TransportBase.EVENT_RESPONSE_SUFFIX, {
           transportClass,
@@ -334,7 +363,7 @@ class PetfeederServer {
       // Do not need output to console when transmitting camera data
       if (event !== TransportBase.EVENT_CAMERA_H264DATA && event !== TransportBase.EVENT_CAMERA_PICTUREDATA)
         console.info(
-          `[${PetfeederServer.utcDate}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
+          `[${PetfeederServer.utcDateString}][SERVER] Emitting event for ${transportClass || 'all'}${' ' + userId ||
             ''} ${event} ${JSON.stringify(data)}`
         )
 
@@ -370,7 +399,7 @@ class PetfeederServer {
     this._camera = new Camera(config.camera)
     this._camera.on('error', async err => {
       this._camera = null
-      console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
+      console.error(`[${PetfeederServer.utcDateString}][ERROR] Camera error:`, err)
       this._device.powerLedBlinking = false
       await new Promise(resolve => setTimeout(() => resolve(), 100)) // let this._device.powerLedBlinking setter to destroy blink timer
       await this._device.setPowerLedState(true)
@@ -379,13 +408,13 @@ class PetfeederServer {
 
     this._camera.on('close', async () => {
       this._camera = null
-      console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been destroyed`)
+      console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera instance has been destroyed`)
       this._device.powerLedBlinking = false
       await new Promise(resolve => setTimeout(() => resolve(), 100)) // let this._device.powerLedBlinking setter to destroy blink timer
       await this._device.setPowerLedState(true)
     })
 
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera instance has been created`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera instance has been created`)
     return this._camera
   }
 
@@ -406,7 +435,11 @@ class PetfeederServer {
 
     this._addCameraStreamSubscriber(transportClass, userId, stream)
     this._device.powerLedBlinking = true // start blinking with Power LED
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been started for:`, transportClass, userId)
+    console.info(
+      `[${PetfeederServer.utcDateString}][SERVER] Camera stream has been started for:`,
+      transportClass,
+      userId
+    )
   }
 
   /**
@@ -418,7 +451,11 @@ class PetfeederServer {
 
     this._removeCameraStreamSubscriber(transportClass, userId)
     if (this._camera) await this._camera.stopStreaming(streamSubscriber.stream)
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
+    console.info(
+      `[${PetfeederServer.utcDateString}][SERVER] Camera stream has been stopped for:`,
+      transportClass,
+      userId
+    )
   }
 
   /**
@@ -453,52 +490,72 @@ class PetfeederServer {
     })
 
     console.info(
-      `[${PetfeederServer.utcDate}][SERVER] Camera picture stream has been started for:`,
+      `[${PetfeederServer.utcDateString}][SERVER] Camera picture stream has been started for:`,
       transportClass,
       userId
     )
+  }
+
+  async startRecording() {
+    const fileName = `video-${Date.now()}.h264`
+    const filePath = path.resolve(DB.currentDbDir, fileName)
+
+    const camera = this._getCamera()
+    // camera.prependListener('close', () => {
+    //   console.log('Recording stopped, saving here')
+    // })
+
+    await camera.startRecording(filePath)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been started:`, filePath)
+    return fileName
+  }
+
+  async stopRecording() {
+    if (!this._camera) return Promise.resolve()
+    await this._camera.stopRecording()
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been stopped`)
   }
 
   /**
    * Setting up and run
    */
   async run() {
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Initializing device:`, this._device.constructor.name)
-    console.info(`[${PetfeederServer.utcDate}][SERVER] GPIO...`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Initializing device:`, this._device.constructor.name)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] GPIO...`)
     await this._device.setupGPIO()
-    console.info(`[${PetfeederServer.utcDate}][SERVER] GPIO OK`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] GPIO OK`)
 
     // Here we can check if button was pressed after start
     this._device
       .getButtonState()
       .then(buttonState =>
-        console.info(`[${PetfeederServer.utcDate}][SERVER] Button "SET" state on startup:`, buttonState)
+        console.info(`[${PetfeederServer.utcDateString}][SERVER] Button "SET" state on startup:`, buttonState)
       )
-      .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Button "SET" read state error:`, err))
+      .catch(err => console.error(`[${PetfeederServer.utcDateString}][SERVER] Button "SET" read state error:`, err))
 
-    console.info(`[${PetfeederServer.utcDate}][SERVER] UART...`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] UART...`)
     await this._device.connect()
-    console.info(`[${PetfeederServer.utcDate}][SERVER] UART OK`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] UART OK`)
 
-    console.info(`[${PetfeederServer.utcDate}][SERVER] LEDs...`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] LEDs...`)
     await Promise.all([this._device.setPowerLedState(true), this._device.setLinkLedState(false)])
-    console.info(`[${PetfeederServer.utcDate}][SERVER] LEDs OK`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] LEDs OK`)
 
     this._device
       .getSchedule()
       .then(schedule => {
         this._cachedSchedule = schedule
-        console.info(`[${PetfeederServer.utcDate}][SERVER] Schedule cached:`)
+        console.info(`[${PetfeederServer.utcDateString}][SERVER] Schedule cached:`)
         console.info(schedule)
       })
-      .catch(err => console.error(`[${PetfeederServer.utcDate}][SERVER] Error reading schedule on startup:`, err))
+      .catch(err => console.error(`[${PetfeederServer.utcDateString}][SERVER] Error reading schedule on startup:`, err))
 
     const allTransportsStarted = []
     for (let transport of Object.values(this._transportList)) allTransportsStarted.push(transport.run())
 
     await Promise.all(allTransportsStarted)
-    console.info(`[${PetfeederServer.utcDate}][SERVER] All transports has started`)
-    console.info(`[${PetfeederServer.utcDate}][SERVER] Initialization complete`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] All transports has started`)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Initialization complete`)
   }
 }
 
