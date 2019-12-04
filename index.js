@@ -86,7 +86,7 @@ server.run().then(() => {
   mdnsAd = mdns.createAdvertisement(mdns.tcp('socket-io'), socketIoConfig.port, {
     name: 'iot-smart-petfeeder',
     txtRecord: {
-      ver: '0.0.1',
+      ver: packageConfig.version,
       path: socketIoConfig.options.path,
     },
   })
