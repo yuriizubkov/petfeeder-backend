@@ -402,11 +402,11 @@ class PetfeederServer {
 
     if (this._camera && this._camera.takingPicture)
       throw new Error('Can not take picture, camera already taking picture')
-    
+
     await this.device.setPowerLedState(false)
 
     this._camera = new Camera(config.camera)
-    this._camera.on('error', err => {
+    this._camera.on('error', async err => {
       console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
       await this.device.setPowerLedState(true)
     })
