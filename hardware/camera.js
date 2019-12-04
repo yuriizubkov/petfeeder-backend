@@ -16,7 +16,7 @@ class Camera extends EventEmitter {
       width: 640,
       height: 480,
       framerate: 30,
-      bitrate: 640000, // kBit is enough for 640x480 video https://comm.gatech.edu/resources/video/encoding
+      bitrate: 640000, // 640kBit is enough for 640x480 video https://comm.gatech.edu/resources/video/encoding
       mode: 4,
     }
 
@@ -100,8 +100,10 @@ class Camera extends EventEmitter {
   _configToArgs(config) {
     const args = []
     Object.keys(config).forEach(key => {
-      args.push('--' + key)
-      if (typeof config[key] !== 'boolean' && config[key] === true) args.push(config[key])
+      if (typeof config[key] !== 'boolean') {
+        args.push('--' + key)
+        args.push(config[key])
+      } else if (config[key] === true) args.push('--' + key)
     })
 
     return args
@@ -131,9 +133,7 @@ class Camera extends EventEmitter {
       // Listen for error event to reject promise
       this._childProcess.once('error', err =>
         reject(
-          new Error(
-            "Could not start capture with Camera. Are you running on a Raspberry Pi with 'raspivid' and 'raspistill' installed?"
-          )
+          new Error(`Could not start capture with Camera. Are you running on a Raspberry Pi with ${mode} installed?`)
         )
       )
 
@@ -206,7 +206,7 @@ class Camera extends EventEmitter {
     if (this.streaming) throw new Error('Can not take a photo, camera is streaming video at the moment')
     if (this.recording) throw new Error('Can not take a photo, camera is recording video at the moment')
 
-    await this._startCapture(this._photoConfig, 'picture', this.MODE_PHOTO)
+    await this._startCapture(this._photoConfig, this.MODE_PHOTO)
     this._takingPicture = true
     this.once('close', () => {
       this._takingPicture = false
