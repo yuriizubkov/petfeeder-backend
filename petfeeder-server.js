@@ -353,7 +353,12 @@ class PetfeederServer {
       // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
       // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
       this._camera = new Camera(config.camera)
-      this._camera.on('error', err => console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err))
+      this._camera.on('error', err => {
+        console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
+        this._camera = null
+        throw err
+      })
+
       this._camera.on('close', async () => {
         // if (this._camera.recording) await this._camera.stopRecording()
         this._device.powerLedBlinking = false
@@ -408,7 +413,9 @@ class PetfeederServer {
     this._camera = new Camera(config.camera)
     this._camera.on('error', async err => {
       console.error(`[${PetfeederServer.utcDate}][ERROR] Camera error:`, err)
+      this._camera = null
       await this._device.setPowerLedState(true)
+      throw err
     })
 
     this._camera.on('close', async () => {
