@@ -21,6 +21,17 @@ class DataBase {
     return 'gallery'
   }
 
+  static get currentDbDir() {
+    const dateUtc = new Date(Date.now())
+    return path.resolve(
+      __dirname,
+      DataBase.DATA_DIR_NAME,
+      dateUtc.getUTCFullYear().toString(),
+      nf(dateUtc.getUTCMonth() + 1),
+      nf(dateUtc.getUTCDate())
+    )
+  }
+
   static _getCurrentDbFilePath(dateUtc = new Date(Date.now())) {
     if (!(dateUtc instanceof Date) || isNaN(dateUtc.getTime())) throw new Error('Invalid date')
     return path.resolve(
