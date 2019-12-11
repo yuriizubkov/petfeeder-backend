@@ -129,6 +129,12 @@ class DataBase {
     return events
   }
 
+  static async getGallery(year, month, date) {
+    const utcDate = new Date(Date.UTC(year, month - 1, date))
+    const gallery = await DataBase.get(DataBase.COLLECTION_GALLERY, utcDate)
+    return gallery
+  }
+
   // TODO: need some caching mechanism
   static async getAllDates() {
     // reading "./data" directory recursive and getting dates object from dir names
