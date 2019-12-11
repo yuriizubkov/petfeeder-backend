@@ -92,7 +92,7 @@ server.run().then(() => {
   })
 
   mdnsAd.start()
-  console.info(`[${PetfeederServer.utcDateString()}][SERVER] Bonjour service has started`)
+  console.info(`[${PetfeederServer.utcDateString}][SERVER] Bonjour service has started`)
 
   // express app for UI
   app = express()
@@ -107,7 +107,7 @@ server.run().then(() => {
   app.use(staticMiddleware)
 
   // Starting express server for UI
-  app.listen(PORT, () => console.info(`[${PetfeederServer.utcDateString()}][SERVER] UI app is running on port ${PORT}`))
+  app.listen(PORT, () => console.info(`[${PetfeederServer.utcDateString}][SERVER] UI app is running on port ${PORT}`))
 })
 
 // let it crash here with error messages if something has not started properly
