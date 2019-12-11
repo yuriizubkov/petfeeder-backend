@@ -45,7 +45,7 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['getEvents', 'getAllDates'],
+        methodsAllowed: ['getEvents', 'getGallery', 'getAllDates'],
       },
       wifi: {
         objectToCall: null, // not implemented

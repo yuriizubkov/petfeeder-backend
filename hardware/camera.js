@@ -6,7 +6,8 @@ const fs = require('fs')
 const path = require('path')
 
 /**
- * Based on ideas from: https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
+ * Based on ideas from:
+ * https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
  */
 class Camera extends EventEmitter {
   constructor(config) {
