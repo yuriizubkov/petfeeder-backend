@@ -182,7 +182,10 @@ class Camera extends EventEmitter {
     if (this.takingPicture) throw new Error('Can not record video, camera is taking photo at the moment')
     if (this.recording) throw new Error('Already recording')
     this._recording = true
-    if (!this.streaming) await this._startCapture(this._videoConfig, this.MODE_VIDEO)
+    if (!this.streaming) {
+      this._streaming = true
+      await this._startCapture(this._videoConfig, this.MODE_VIDEO)
+    }
 
     this._fileStream = fs.createWriteStream(filePath)
     this._dataStream.pipe(this._fileStream)
