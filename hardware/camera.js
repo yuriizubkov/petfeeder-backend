@@ -3,7 +3,6 @@ const spawn = require('child_process').spawn
 const stream = require('stream')
 const EventEmitter = require('events')
 const fs = require('fs')
-const path = require('path')
 
 /**
  * Based on ideas from:
