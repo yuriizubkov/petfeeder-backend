@@ -1,16 +1,23 @@
-const low = require('lowdb')
-const FileAsync = require('lowdb/adapters/FileAsync')
+const { MongoClient } = require('mongodb')
 const path = require('path')
-const fs = require('fs')
 const { nf } = require('../utilities/helpers')
+
+// Connection URL TODO: move to configuration
+const url = 'mongodb://localhost:27017/petfeeder'
+let db = null
+
+MongoClient.connect(url, async function(err, database) {
+  if (err) {
+    console.error(err)
+    return
+  }
+
+  db = database
+})
 
 class DataBase {
   static get DATA_DIR_NAME() {
     return 'data'
-  }
-
-  static get DATA_FILE_NAME() {
-    return 'db.json'
   }
 
   static get COLLECTION_EVENTS() {
@@ -21,34 +28,24 @@ class DataBase {
     return 'gallery'
   }
 
-  static get currentDbDir() {
+  static async getOrCreateCurrentPath() {
     const dateUtc = new Date(Date.now())
-    return path.resolve(
+    const currentPath = path.resolve(
       __dirname,
       DataBase.DATA_DIR_NAME,
       dateUtc.getUTCFullYear().toString(),
       nf(dateUtc.getUTCMonth() + 1),
       nf(dateUtc.getUTCDate())
     )
+
+    await DataBase._createPathIfNotExist(currentPath)
+    return currentPath
   }
 
-  static _getCurrentDbFilePath(dateUtc = new Date(Date.now())) {
-    if (!(dateUtc instanceof Date) || isNaN(dateUtc.getTime())) throw new Error('Invalid date')
-    return path.resolve(
-      __dirname,
-      DataBase.DATA_DIR_NAME,
-      dateUtc.getUTCFullYear().toString(),
-      nf(dateUtc.getUTCMonth() + 1),
-      nf(dateUtc.getUTCDate()),
-      DataBase.DATA_FILE_NAME
-    )
-  }
-
-  static _createPathIfNotExist(filePath) {
+  static _createPathIfNotExist(dirPath) {
     return new Promise((resolve, reject) => {
       // recursive option for mkdir was introduced in node v10.12
       // so we have to have workaround for other versions
-      const dirPath = path.dirname(filePath)
       const mkdirp = dir =>
         path
           .resolve(dir)
@@ -67,108 +64,151 @@ class DataBase {
           }, '')
 
       fs.access(filePath, fs.constants.F_OK, err => {
-        if (!err) return resolve() // file exists
+        if (!err) return resolve() // path exists
         mkdirp(dirPath)
         resolve()
       })
     })
   }
 
-  static async _getAdapterByDate(utcDate = new Date(Date.now())) {
-    const filePath = DataBase._getCurrentDbFilePath(utcDate)
-    await DataBase._createPathIfNotExist(filePath)
-    const adapter = new FileAsync(filePath)
-    const db = await low(adapter)
-    await db.defaults({ events: [], gallery: [] }).write()
-    return db
-  }
-
-  static async _getAdapterByPath(filePath) {
-    await DataBase._createPathIfNotExist(filePath)
-    const adapter = new FileAsync(filePath)
-    const db = await low(adapter)
-    await db.defaults({ events: [], gallery: [] }).write()
-    return db
-  }
-
-  static async get(collection = 'events', utcDate = new Date(Date.now())) {
-    const db = await DataBase._getAdapterByDate(utcDate)
-    const result = await db.get(collection).value()
-    return result
-  }
-
-  static async push(dbObject, collection = 'events') {
-    const db = await DataBase._getAdapterByDate()
-    await db
-      .get(collection)
-      .push(dbObject)
-      .write()
-  }
-
-  static async pushEvent(type, data) {
-    await DataBase.push({
-      timestamp: Date.now(), // timestamp UTC
-      type,
-      data,
+  static pushEvent(type, data) {
+    return new Promise((resolve, reject) => {
+      db.collection(DataBase.COLLECTION_EVENTS).insertOne(
+        {
+          _id: Date.now(), // timestamp UTC
+          type,
+          data,
+        },
+        (err, r) => {
+          if (err) return reject(err)
+          if (r.insertedCount === 1) return resolve()
+          reject(`Error inserting to ${DataBase.COLLECTION_EVENTS}. Inserted count not equal 1`)
+        }
+      )
     })
   }
 
-  static async pushGallery(fileName) {
-    await DataBase.push(
-      {
-        timestamp: Date.now(), // timestamp UTC
-        fileName,
-      },
-      DataBase.COLLECTION_GALLERY
-    )
-  }
-
-  static async getEvents(year, month, date) {
-    const utcDate = new Date(Date.UTC(year, month - 1, date))
-    const events = await DataBase.get(DataBase.COLLECTION_EVENTS, utcDate)
-    return events
-  }
-
-  static async getGallery(year, month, date) {
-    const utcDate = new Date(Date.UTC(year, month - 1, date))
-    const gallery = await DataBase.get(DataBase.COLLECTION_GALLERY, utcDate)
-    return gallery
-  }
-
-  // TODO: need some caching mechanism
-  static async getAllDates() {
-    // reading "./data" directory recursive and getting dates object from dir names
-    const getDatePart = async (rootPath, level = 1) => {
-      if (level > 3) return {} // should be less than 3 levels: year, month, date folders
-      const files = fs.readdirSync(rootPath)
-      let objToSet = {}
-      for (const file of files) {
-        const filePath = path.resolve(rootPath, file)
-        const stats = fs.statSync(filePath)
-        if (stats.isDirectory()) {
-          const numberPart = parseInt(file) // year, month or date
-          objToSet[numberPart] = await getDatePart(filePath, level + 1)
-
-          if (level === 3) {
-            const dbPath = path.resolve(filePath, DataBase.DATA_FILE_NAME)
-            const db = await DataBase._getAdapterByPath(dbPath)
-            const dbState = await db.getState()
-
-            // counters
-            objToSet[numberPart] = {
-              events: dbState.events.length,
-              gallery: dbState.gallery.length,
-            }
-          }
+  static pushGallery(fileName) {
+    return new Promise((resolve, reject) => {
+      db.collection(DataBase.COLLECTION_GALLERY).insertOne(
+        {
+          _id: Date.now(), // timestamp UTC
+          fileName,
+        },
+        (err, r) => {
+          if (err) return reject(err)
+          if (r.insertedCount === 1) return resolve()
+          reject(`Error inserting to ${DataBase.COLLECTION_GALLERY}. Inserted count not equal 1`)
         }
-      }
+      )
+    })
+  }
 
-      return objToSet
-    }
+  static getEvents(year, month, date) {
+    return new Promise((resolve, reject) => {
+      const utcDate = new Date(Date.UTC(year, month - 1, date))
+      const fromTimestamp = utcDate.getTime()
+      const toTimestamp = utcDate.getTime() + 24 * 3600000 // + 24hrs in milliseconds
+      db.collection(DataBase.COLLECTION_EVENTS)
+        .find({ _id: { $gte: fromTimestamp, $lt: toTimestamp } }) // (_id >= fromTimestamp && _id < toTimestamp)
+        .toArray((err, docs) => {
+          if (err) return reject(err)
+          const events = docs.map(value => {
+            return {
+              timestamp: value._id,
+              type: value.type,
+              data: value.data,
+            }
+          })
 
-    const rootDataPath = path.resolve(__dirname, DataBase.DATA_DIR_NAME) // "./data" dir path
-    const dates = await getDatePart(rootDataPath)
-    return dates
+          resolve(events)
+        })
+    })
+  }
+
+  static getGallery(year, month, date) {
+    return new Promise((resolve, reject) => {
+      const utcDate = new Date(Date.UTC(year, month - 1, date))
+      const fromTimestamp = utcDate.getTime()
+      const toTimestamp = utcDate.getTime() + 24 * 3600000 // + 24hrs in milliseconds
+      db.collection(DataBase.COLLECTION_GALLERY)
+        .find({ _id: { $gte: fromTimestamp, $lt: toTimestamp } }) // (_id >= fromTimestamp && _id < toTimestamp)
+        .toArray((err, docs) => {
+          if (err) return reject(err)
+          const events = docs.map(value => {
+            return {
+              timestamp: value._id,
+              fileName: value.fileName,
+            }
+          })
+
+          resolve(events)
+        })
+    })
+  }
+
+  static getEventDates() {
+    return new Promise((resolve, reject) => {
+      const eventDates = {}
+      db.collection(DataBase.COLLECTION_EVENTS)
+        .find({}, ['_id'])
+        .toArray((err, docs) => {
+          if (err) return reject(err)
+          for (const doc of docs) {
+            const docDate = new Date(doc._id) // UTC date from timestamp
+            const year = docDate.getUTCFullYear()
+            const month = docDate.getUTCMonth() + 1
+            const date = docDate.getUTCDate()
+            if (!eventDates[year]) {
+              eventDates[year] = {}
+              eventDates[year][month] = {}
+            }
+
+            if (!eventDates[year][month]) {
+              eventDates[year][month] = {}
+              eventDates[year][month][date] = {}
+            }
+
+            if (!eventDates[year][month][date] || Object.keys(eventDates[year][month][date]).length === 0)
+              eventDates[year][month][date] = { events: 1 }
+            else eventDates[year][month][date].events++
+          }
+
+          resolve(eventDates)
+        })
+    })
+  }
+
+  static getGalleryDates() {
+    return new Promise((resolve, reject) => {
+      const galleryDates = {}
+      db.collection(DataBase.COLLECTION_GALLERY)
+        .find({}, ['_id'])
+        .toArray((err, docs) => {
+          if (err) return reject(err)
+          for (const doc of docs) {
+            const docDate = new Date(doc._id) // UTC date from timestamp
+            const year = docDate.getUTCFullYear()
+            const month = docDate.getUTCMonth() + 1
+            const date = docDate.getUTCDate()
+            if (!galleryDates[year]) {
+              galleryDates[year] = {}
+              galleryDates[year][month] = {}
+            }
+
+            if (!galleryDates[year][month]) {
+              galleryDates[year][month] = {}
+              galleryDates[year][month][date] = {}
+            }
+
+            if (!galleryDates[year][month][date] || Object.keys(galleryDates[year][month][date]).length === 0)
+              galleryDates[year][month][date] = { gallery: 1 }
+            else galleryDates[year][month][date].gallery++
+          }
+
+          resolve(galleryDates)
+        })
+    })
   }
 }
 

@@ -46,7 +46,7 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['getEvents', 'getGallery', 'getAllDates'],
+        methodsAllowed: ['getEvents', 'getGallery', 'getGalleryDates', 'getEventDates'],
       },
       wifi: {
         objectToCall: null, // not implemented
@@ -539,7 +539,8 @@ class PetfeederServer {
 
   async startRecording() {
     const fileName = `video-${Date.now()}.h264`
-    const filePath = path.resolve(DB.currentDbDir, fileName)
+    const currentPath = await DB.getOrCreateCurrentPath()
+    const filePath = path.resolve(currentPath, fileName)
     const camera = this._getCamera()
 
     await camera.startRecording(filePath)
