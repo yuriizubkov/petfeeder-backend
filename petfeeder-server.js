@@ -3,8 +3,9 @@ const config = require('./petfeeder-server.json')
 const DB = require('./database')
 const Camera = require('./hardware/camera')
 const TransportBase = require('./transport/transport-base') // for event names constants
-const { nf } = require('./utilities/helpers')
+const { nf, simpleSpawn } = require('./utilities/helpers')
 const path = require('path')
+const ffmpeg = require('fluent-ffmpeg')
 
 /**
  * Server for DIY pet feeder
@@ -108,16 +109,56 @@ class PetfeederServer {
       // Starting recording video only on auto feeding
       if (!this._hardwareButtonFeeding)
         this.startRecording()
-          .then(fileName => {
-            DB.pushGallery(fileName).catch(err => {
+          .then(info => {
+            DB.pushGallery(info.fileName).catch(err => {
               console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
             })
 
             // Stop recording video on timer
-            setTimeout(() => {
-              this.stopRecording().catch(err => {
+            setTimeout(async () => {
+              try {
+                await this.stopRecording()
+              } catch (err) {
                 console.error(`[${PetfeederServer.utcDateString}][ERROR] Video recording stop error:`, err)
-              })
+                return
+              }
+
+              // adding h264 to mp4 container
+              const mp4FilePath =
+                info.filePath
+                  .split('.')
+                  .slice(0, -1)
+                  .join('.') + '.mp4'
+
+              try {
+                await simpleSpawn('MP4Box', ['-fps', config.camera.video.fps || 30, '-add', info.filePath, mp4FilePath]) // default fps from camera class, or fps from config
+                console.info(`[${PetfeederServer.utcDateString}][SERVER] Video has been converted to MP4`)
+              } catch (err) {
+                console.error(`[${PetfeederServer.utcDateString}][ERROR] Video converting error:`, err)
+                return
+              }
+
+              // taking thumbnails from video file
+              const makeThumbnails = () => {
+                return new Promise((resolve, reject) => {
+                  ffmpeg(mp4FilePath)
+                    .on('error', reject)
+                    .on('end', resolve)
+                    .screenshots({
+                      count: 4,
+                      filename: '%b-%i.png',
+                      folder: info.filePath.split(info.fileName)[0],
+                      size: '160x120', // TODO: move to configuration
+                    })
+                })
+              }
+
+              try {
+                await makeThumbnails()
+                console.info(`[${PetfeederServer.utcDateString}][SERVER] Video thumbnails done`)
+              } catch (err) {
+                console.error(`[${PetfeederServer.utcDateString}][ERROR] Making thumbnails error:`, err)
+              }
             }, 30000) // 30 seconds - TODO: move to configuration
           })
           .catch(err => {
@@ -504,7 +545,10 @@ class PetfeederServer {
     await camera.startRecording(filePath)
     console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been started:`, filePath)
     this._device.powerLedBlinking = true
-    return fileName
+    return {
+      fileName,
+      filePath,
+    }
   }
 
   async stopRecording() {

@@ -23,6 +23,7 @@
     "connect-history-api-fallback": "^1.6.0",
     "eventemitter2": "^5.0.1",
     "express": "^4.17.1",
+    "fluent-ffmpeg": "^2.1.2",
     "lowdb": "^1.0.0",
     "mdns": "^2.5.1",
     "petwant-device": "^1.0.5",
