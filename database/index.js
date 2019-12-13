@@ -156,9 +156,9 @@ class DataBase {
           if (err) return reject(err)
           for (const doc of docs) {
             const docDate = new Date(doc._id) // UTC date from timestamp
-            const year = docDate.getUTCFullYear()
-            const month = docDate.getUTCMonth() + 1
-            const date = docDate.getUTCDate()
+            const year = docDate.getFullYear()
+            const month = docDate.getMonth() + 1
+            const date = docDate.getDate()
             if (!eventDates[year]) {
               eventDates[year] = {}
               eventDates[year][month] = {}
@@ -188,9 +188,9 @@ class DataBase {
           if (err) return reject(err)
           for (const doc of docs) {
             const docDate = new Date(doc._id) // UTC date from timestamp
-            const year = docDate.getUTCFullYear()
-            const month = docDate.getUTCMonth() + 1
-            const date = docDate.getUTCDate()
+            const year = docDate.getFullYear()
+            const month = docDate.getMonth() + 1
+            const date = docDate.getDate()
             if (!galleryDates[year]) {
               galleryDates[year] = {}
               galleryDates[year][month] = {}
