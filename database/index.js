@@ -1,6 +1,7 @@
 const { MongoClient } = require('mongodb')
 const path = require('path')
 const { nf } = require('../utilities/helpers')
+const fs = require('fs')
 
 // Connection URL TODO: move to configuration
 const url = 'mongodb://localhost:27017/petfeeder'
