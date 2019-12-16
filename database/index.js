@@ -64,7 +64,7 @@ class DataBase {
             return currentPath
           }, '')
 
-      fs.access(filePath, fs.constants.F_OK, err => {
+      fs.access(dirPath, fs.constants.F_OK, err => {
         if (!err) return resolve() // path exists
         mkdirp(dirPath)
         resolve()
