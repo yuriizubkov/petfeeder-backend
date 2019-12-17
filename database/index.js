@@ -94,6 +94,7 @@ class DataBase {
       db.collection(DataBase.COLLECTION_GALLERY).insertOne(
         {
           _id: Date.now(), // timestamp UTC
+          state: 0, // 0 - just started recording file, 1 - converted
           fileName,
         },
         (err, r) => {
@@ -102,6 +103,15 @@ class DataBase {
           reject(`Error inserting to ${DataBase.COLLECTION_GALLERY}. Inserted count not equal 1`)
         }
       )
+    })
+  }
+
+  static updateGallery(filter, set) {
+    return new Promise((resolve, reject) => {
+      db.collection(DataBase.COLLECTION_GALLERY).findOneAndUpdate(filter, { $set: set }, (err, r) => {
+        if (err) return reject(err)
+        resolve()
+      })
     })
   }
 

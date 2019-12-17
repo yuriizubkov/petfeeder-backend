@@ -138,6 +138,11 @@ class PetfeederServer {
                 return
               }
 
+              // updating state of gallery entry
+              DB.updateGallery({ fileName: info.fileName }, { state: 1 }).catch(err => {
+                console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
+              }) // 1 - converted, 0 - recording
+
               // taking thumbnails from video file
               const makeThumbnails = () => {
                 return new Promise((resolve, reject) => {
@@ -158,7 +163,13 @@ class PetfeederServer {
                 console.info(`[${PetfeederServer.utcDateString}][SERVER] Video thumbnails done`)
               } catch (err) {
                 console.error(`[${PetfeederServer.utcDateString}][ERROR] Making thumbnails error:`, err)
+                return
               }
+
+              // updating state of gallery entry
+              DB.updateGallery({ fileName: info.fileName }, { state: 2 }).catch(err => {
+                console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
+              }) // 2 - thumbnails done, 1 - converted, 0 - recording
             }, 30000) // 30 seconds - TODO: move to configuration
           })
           .catch(err => {
@@ -285,7 +296,7 @@ class PetfeederServer {
       else this._currentFeedingInProcess = true
       this._hardwareButtonFeeding = false
       this._currentFeedingWasScheduled = false
-      this._currentFeedingPortions = args[0] // portions - 1st argument
+      this._currentFeedingPortions = args[0] // portions - 1st argument TODO: check can be null here
     }
 
     let result = null
