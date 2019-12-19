@@ -17,6 +17,13 @@ MongoClient.connect(url, async function(err, database) {
 })
 
 class DataBase {
+  /** If I need to change something later in DB schema,
+   * I can write converters for migrating from old schema to new one
+   */
+  static get schemaVersion() {
+    return 1
+  }
+
   static get DATA_DIR_NAME() {
     return 'data'
   }
@@ -77,6 +84,7 @@ class DataBase {
       db.collection(DataBase.COLLECTION_EVENTS).insertOne(
         {
           _id: Date.now(), // timestamp UTC
+          _v: DataBase.schemaVersion,
           type,
           data,
         },
@@ -94,6 +102,7 @@ class DataBase {
       db.collection(DataBase.COLLECTION_GALLERY).insertOne(
         {
           _id: Date.now(), // timestamp UTC
+          _v: DataBase.schemaVersion,
           state: 0, // 0 - just started recording file, 1 - converted
           fileName,
         },
