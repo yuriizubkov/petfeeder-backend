@@ -1,5 +1,5 @@
 const TransportBase = require('./transport-base')
-const config = require('./socket-io-transport.json') // loading configuration file for this particular "transport"
+const config = require('./socket-io-transport.json') // loading configuration file for this particular "transport" TODO: maybe it is better to add section to the common server configuration file
 const IO = require('socket.io')
 
 class SocketIoTransport extends TransportBase {

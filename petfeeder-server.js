@@ -447,7 +447,7 @@ class PetfeederServer {
     if (this._camera) return this._camera
 
     // https://www.raspberrypi.org/documentation/raspbian/applications/camera.md
-    // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names (black and white video for noir cameras in this case)
+    // additional parameters can be passed like { colfx: '128:128' } use -- prefixed parameter names from the documentation page above (black and white video for noir cameras in this case)
     this._camera = new Camera(config.camera)
     this._camera.on('error', async err => {
       this._camera = null
@@ -520,7 +520,7 @@ class PetfeederServer {
     if (this._camera && this._camera.takingPicture)
       throw new Error('Can not take picture, camera already taking picture')
 
-    await this._device.setPowerLedState(false) // turning off Power LED to indicate camera-related activity
+    await this._device.setPowerLedState(false) // turning off Power LED to indicate camera activity
     const camera = this._getCamera()
 
     // sending response event before 'on close' handler that we declared in '_getCamera' method
