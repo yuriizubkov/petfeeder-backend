@@ -143,7 +143,7 @@ class Camera extends EventEmitter {
       // Listen for data event, delivering data to all streams
       this._childProcess.stdout.on('data', data => {
         if (!this._dataStream.push(data)) {
-          this._childProcess.stdout.pause()
+          this._childProcess.stdout.pause() //TODO: I think it is better to just skip slow readers this._dataStream (they will be skipping frames)
           this._dataStream.once('drain', () => {
             this._childProcess.stdout.resume()
           })
