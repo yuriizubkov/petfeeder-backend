@@ -189,9 +189,8 @@ class DataBase {
               eventDates[year][month][date] = {}
             }
 
-            if (!eventDates[year][month][date] || Object.keys(eventDates[year][month][date]).length === 0)
-              eventDates[year][month][date] = { events: 1 }
-            else eventDates[year][month][date].events++
+            if (!eventDates[year][month][date]) eventDates[year][month][date] = 1
+            else eventDates[year][month][date]++
           }
 
           resolve(eventDates)
@@ -221,9 +220,8 @@ class DataBase {
               galleryDates[year][month][date] = {}
             }
 
-            if (!galleryDates[year][month][date] || Object.keys(galleryDates[year][month][date]).length === 0)
-              galleryDates[year][month][date] = { gallery: 1 }
-            else galleryDates[year][month][date].gallery++
+            if (!galleryDates[year][month][date]) galleryDates[year][month][date] = 1
+            else galleryDates[year][month][date]++
           }
 
           resolve(galleryDates)
