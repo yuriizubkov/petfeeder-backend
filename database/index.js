@@ -134,7 +134,7 @@ class DataBase {
           if (err) return reject(err)
           const events = docs.map(value => {
             return {
-              timestamp: value._id,
+              id: value._id,
               type: value.type,
               data: value.data,
             }
@@ -156,8 +156,8 @@ class DataBase {
           if (err) return reject(err)
           const events = docs.map(value => {
             return {
-              timestamp: value._id,
-              fileName: value.fileName,
+              id: value._id,
+              state: value.state,
             }
           })
 
