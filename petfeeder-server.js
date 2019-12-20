@@ -109,8 +109,8 @@ class PetfeederServer {
       // Starting recording video only on auto feeding
       if (!this._hardwareButtonFeeding)
         this.startRecording()
-          .then(info => {
-            DB.pushGallery(info.fileName).catch(err => {
+          .then(startRecInfo => {
+            DB.pushGallery(startRecInfo.fileTimestamp).catch(err => {
               console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
             })
 
@@ -125,13 +125,19 @@ class PetfeederServer {
 
               // adding h264 to mp4 container
               const mp4FilePath =
-                info.filePath
+                startRecInfo.fullPath
                   .split('.')
                   .slice(0, -1)
                   .join('.') + '.mp4'
 
               try {
-                await simpleSpawn('MP4Box', ['-fps', config.camera.video.fps || 30, '-add', info.filePath, mp4FilePath]) // default fps from camera class, or fps from config
+                await simpleSpawn('MP4Box', [
+                  '-fps',
+                  config.camera.video.fps || 30,
+                  '-add',
+                  startRecInfo.fullPath,
+                  mp4FilePath,
+                ]) // default fps from camera class, or fps from config
                 console.info(`[${PetfeederServer.utcDateString}][SERVER] Video has been converted to MP4`)
               } catch (err) {
                 console.error(`[${PetfeederServer.utcDateString}][ERROR] Video converting error:`, err)
@@ -139,7 +145,7 @@ class PetfeederServer {
               }
 
               // updating state of gallery entry
-              DB.updateGallery({ fileName: info.fileName }, { state: 1 }).catch(err => {
+              DB.updateGallery({ _id: startRecInfo.fileTimestamp }, { state: 1 }).catch(err => {
                 console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
               }) // 1 - converted, 0 - recording
 
@@ -151,8 +157,8 @@ class PetfeederServer {
                     .on('end', resolve)
                     .screenshots({
                       count: 4,
-                      filename: '%b-%i.png',
-                      folder: info.filePath.split(info.fileName)[0],
+                      filename: 'thumb-' + startRecInfo.fileTimestamp + '-%i.png',
+                      folder: startRecInfo.fullPath.split(startRecInfo.fileName)[0],
                       size: '160x120', // TODO: move to configuration
                     })
                 })
@@ -167,7 +173,7 @@ class PetfeederServer {
               }
 
               // updating state of gallery entry
-              DB.updateGallery({ fileName: info.fileName }, { state: 2 }).catch(err => {
+              DB.updateGallery({ _id: startRecInfo.fileTimestamp }, { state: 2 }).catch(err => {
                 console.error(`[${PetfeederServer.utcDateString}][ERROR] Database error:`, err)
               }) // 2 - thumbnails done, 1 - converted, 0 - recording
             }, 30000) // 30 seconds - TODO: move to configuration
@@ -549,17 +555,19 @@ class PetfeederServer {
   }
 
   async startRecording() {
-    const fileName = `video-${Date.now()}.h264`
+    const fileTimestamp = Date.now()
+    const fileName = `video-${fileTimestamp}.h264`
     const currentPath = await DB.getOrCreateCurrentPath()
-    const filePath = path.resolve(currentPath, fileName)
+    const fullPath = path.resolve(currentPath, fileName)
     const camera = this._getCamera()
 
-    await camera.startRecording(filePath)
-    console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been started:`, filePath)
+    await camera.startRecording(fullPath)
+    console.info(`[${PetfeederServer.utcDateString}][SERVER] Camera recording has been started:`, fullPath)
     this._device.powerLedBlinking = true
     return {
+      fileTimestamp,
       fileName,
-      filePath,
+      fullPath,
     }
   }
 

@@ -97,14 +97,13 @@ class DataBase {
     })
   }
 
-  static pushGallery(fileName) {
+  static pushGallery(fileTimestamp) {
     return new Promise((resolve, reject) => {
       db.collection(DataBase.COLLECTION_GALLERY).insertOne(
         {
-          _id: Date.now(), // timestamp UTC
+          _id: fileTimestamp || Date.now(), // timestamp UTC
           _v: DataBase.schemaVersion,
-          state: 0, // 0 - just started recording file, 1 - converted
-          fileName,
+          state: 0, // 0 - we just started recording file, 1 - converted, 2 - thumbnails done
         },
         (err, r) => {
           if (err) return reject(err)
