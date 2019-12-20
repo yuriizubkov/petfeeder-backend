@@ -126,9 +126,9 @@ class DataBase {
 
   static getEvents(year, month, date) {
     return new Promise((resolve, reject) => {
-      const utcDate = new Date(Date.UTC(year, month - 1, date))
-      const fromTimestamp = utcDate.getTime()
-      const toTimestamp = utcDate.getTime() + 24 * 3600000 // + 24hrs in milliseconds
+      const utcTime = Date.UTC(year, month - 1, date)
+      const fromTimestamp = utcTime
+      const toTimestamp = utcTime + 24 * 3600000 // + 24hrs in milliseconds
       db.collection(DataBase.COLLECTION_EVENTS)
         .find({ _id: { $gte: fromTimestamp, $lt: toTimestamp } }) // (_id >= fromTimestamp && _id < toTimestamp)
         .toArray((err, docs) => {
@@ -148,9 +148,9 @@ class DataBase {
 
   static getGallery(year, month, date) {
     return new Promise((resolve, reject) => {
-      const utcDate = new Date(Date.UTC(year, month - 1, date))
-      const fromTimestamp = utcDate.getTime()
-      const toTimestamp = utcDate.getTime() + 24 * 3600000 // + 24hrs in milliseconds
+      const utcTime = Date.UTC(year, month - 1, date)
+      const fromTimestamp = utcTime
+      const toTimestamp = utcTime + 24 * 3600000 // + 24hrs in milliseconds
       db.collection(DataBase.COLLECTION_GALLERY)
         .find({ _id: { $gte: fromTimestamp, $lt: toTimestamp } }) // (_id >= fromTimestamp && _id < toTimestamp)
         .toArray((err, docs) => {
