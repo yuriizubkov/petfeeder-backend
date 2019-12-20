@@ -5,7 +5,7 @@ const EventEmitter = require('events')
 const fs = require('fs')
 
 /**
- * Based on ideas from:
+ * Wrapper for raspivid and raspistill. Based on ideas from:
  * https://github.com/servall/pi-camera-connect/blob/master/src/lib/stream-camera.ts
  */
 class Camera extends EventEmitter {
