@@ -4,7 +4,7 @@
     "powerLedGPIOPin": 16,
     "linkLedGPIOPin": 18,
     "buttonGPIOPin": 22,
-    "maxTimeDriftSeconds": 10
+    "maxTimeDriftSeconds": 30
   },
   "camera": {
     "video": {
