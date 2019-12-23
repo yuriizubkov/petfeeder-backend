@@ -313,7 +313,7 @@ class PetfeederServer {
 
     console.info(
       `[${utcDateString()}][SERVER] RPC response. ` +
-        `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${$request.id}, Result:`,
+        `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${request.id}, Result:`,
       result
     )
 
