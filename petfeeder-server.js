@@ -294,7 +294,8 @@ class PetfeederServer {
       console.error(
         `[${utcDateString()}][ERROR] RPC execution fail. ` +
           `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${request.id}, ` +
-          `Method: ${request.method}, Arguments: ${request.args}`
+          `Method: ${request.method}, Arguments: ${request.args}, Error:`,
+        err
       )
 
       try {
