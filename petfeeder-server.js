@@ -312,7 +312,8 @@ class PetfeederServer {
     }
 
     console.info(
-      `[${utcDateString()}][SERVER] RPC response. ` + `Transport: ${transportClass}, User ID: ${userId}, Result:`,
+      `[${utcDateString()}][SERVER] RPC response. ` +
+        `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${$request.id}, Result:`,
       result
     )
 
@@ -500,7 +501,9 @@ class PetfeederServer {
 
     this._addCameraStreamSubscriber(transportClass, userId, stream)
     this._device.powerLedBlinking = true // start blinking with Power LED
-    console.info(`[${utcDateString()}][SERVER] Camera stream has been started for:`, transportClass, userId)
+    console.info(
+      `[${utcDateString()}][SERVER] Camera stream has been started for Transport: ${transportClass}, User ID: ${userId}`
+    )
   }
 
   /**
@@ -512,7 +515,9 @@ class PetfeederServer {
 
     this._removeCameraStreamSubscriber(transportClass, userId)
     if (this._camera) await this._camera.stopStreaming(streamSubscriber.stream)
-    console.info(`[${utcDateString()}][SERVER] Camera stream has been stopped for:`, transportClass, userId)
+    console.info(
+      `[${utcDateString()}][SERVER] Camera stream has been stopped for Transport: ${transportClass}, User ID: ${userId}`
+    )
   }
 
   /**
@@ -546,7 +551,9 @@ class PetfeederServer {
       })
     })
 
-    console.info(`[${utcDateString()}][SERVER] Camera picture stream has been started for:`, transportClass, userId)
+    console.info(
+      `[${utcDateString()}][SERVER] Camera picture stream has been started for Transport: ${transportClass}, User ID: ${userId}`
+    )
   }
 
   async startRecording() {
