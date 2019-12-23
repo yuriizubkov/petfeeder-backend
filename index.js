@@ -6,33 +6,33 @@ const serverConfig = require('./petfeeder-server.json')
 const mdns = require('mdns')
 const Transport = require('./transport')
 const Auth = require('./auth')
+const { utcDateString } = require('./utilities/helpers')
 
-const { PORT = 80, NODE_ENV = 'production' } = process.env // port - for express app
-let app = null // express app for UI starts after main server
+const { PORT = 80, NODE_ENV = 'production' } = process.env // Port - for express app
+let app = null // Express app for UI starts after main server start
 
 // MDNS (Bonjour)
 let mdnsAd = null
 
 // Printing server name and version
 const packageConfig = require('./package.json')
-console.log(packageConfig.name, packageConfig.version)
+console.info(packageConfig.name, packageConfig.version)
 
 // Printing active environment
-console.log('Environment set:', NODE_ENV)
+console.info('Environment set:', NODE_ENV)
 
 // Device selection
 let device = null
 
 if (NODE_ENV === 'production') {
   const PetwantDevice = require('petwant-device')
-  const cf = serverConfig.device
-  // constructor(uartPortName, powerLedGPIOPin, linkLedGPIOPin, buttonGPIOPin, maxTimeDriftSeconds)
+  const cfg = serverConfig.device
   device = new PetwantDevice(
-    cf.uartPortName,
-    cf.powerLedGPIOPin,
-    cf.linkLedGPIOPin,
-    cf.buttonGPIOPin,
-    cf.maxTimeDriftSeconds
+    cfg.uartPortName,
+    cfg.powerLedGPIOPin,
+    cfg.linkLedGPIOPin,
+    cfg.buttonGPIOPin,
+    cfg.maxTimeDriftSeconds
   )
 } else {
   const MockDevice = require('./mock-device')
@@ -47,7 +47,7 @@ async function cleanup(sig) {
   try {
     await device.setLinkLedState(false)
     await device.setPowerLedState(false)
-  } catch (err) {} // we don`t care about errors here, we just need to close this app ASAP :)
+  } catch (err) {} // We don`t care about errors here, we just need to exit this app ASAP :)
 
   device.destroy()
   mdnsAd && mdnsAd.stop()
@@ -92,9 +92,9 @@ server.run().then(() => {
   })
 
   mdnsAd.start()
-  console.info(`[${PetfeederServer.utcDateString}][SERVER] Bonjour service has started`)
+  console.info(`[${utcDateString()}][SERVER] Bonjour service has started`)
 
-  // express app for UI
+  // Express app for UI
   app = express()
 
   // UI dir
@@ -103,11 +103,11 @@ server.run().then(() => {
 
   const staticMiddleware = express.static(publicPath, staticConf)
   app.use(staticMiddleware)
-  app.use('/', history()) // middleware for browser`s history mode
+  app.use('/', history()) // Middleware for browser`s history mode
   app.use(staticMiddleware)
 
-  // Starting express server for UI
-  app.listen(PORT, () => console.info(`[${PetfeederServer.utcDateString}][SERVER] UI app is running on port ${PORT}`))
+  // Starting Express server for UI
+  app.listen(PORT, () => console.info(`[${utcDateString()}][SERVER] UI app is running on port ${PORT}`))
 })
 
-// let it crash here with error messages if something has not started properly
+// Let it crash here with error messages if something has not started properly

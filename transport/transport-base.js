@@ -1,48 +1,62 @@
-const EventEmitter2 = require('eventemitter2')
 const { MethodNotImplementedException } = require('../utilities/error-types')
-class TransportBase extends EventEmitter2 {
+const EventEmitter = require('events')
+
+/**
+ * Abstract message transport, implementation could be Web Sockets, Bluetooth, Serial, Telegram Bot etc...
+ * Should emit EVENT_RPC_REQUEST event on client request
+ * And since we don't have Interfaces in JavaScript, you should extend this class and override all methods, otherwise it will throw errors
+ */
+class TransportBase extends EventEmitter {
   constructor() {
     super()
   }
 
-  static get EVENT_TRANSPORT_CONNECT() {
-    return 'event/transport/connection'
+  static get EVENT_RPC_REQUEST() {
+    return 'request'
   }
 
-  static get EVENT_TRANSPORT_DISCONNECT() {
-    return 'event/transport/disconnect'
+  static get EVENT_RPC_RESPONSE() {
+    return 'response'
   }
 
-  static get EVENT_DEVICE_CLOCKSYNCHRONIZED() {
-    return 'event/device/clocksynchronized'
+  static get EVENT_NOTIFICATION() {
+    return 'notification'
   }
 
-  static get EVENT_DEVICE_FEEDINGSTARTED() {
-    return 'event/device/feedingstarted'
+  static get EVENT_USER_CONNECTION() {
+    return 'connection'
   }
 
-  static get EVENT_DEVICE_FEEDINGCOMPLETE() {
-    return 'event/device/feedingcomplete'
+  static get EVENT_USER_DISCONNECT() {
+    return 'disconnect'
   }
 
-  static get EVENT_DEVICE_WARNINGMOTORSTUCK() {
-    return 'event/device/warningmotorstuck'
+  static get NOTIFICATION_DEVICE_CLOCKSYNCHRONIZED() {
+    return 'device/clocksynchronized'
   }
 
-  static get EVENT_DEVICE_WARNINGNOFOOD() {
-    return 'event/device/warningnofood'
+  static get NOTIFICATION_DEVICE_FEEDINGSTARTED() {
+    return 'device/feedingstarted'
   }
 
-  static get EVENT_CAMERA_H264DATA() {
-    return 'event/camera/h264data'
+  static get NOTIFICATION_DEVICE_FEEDINGCOMPLETE() {
+    return 'device/feedingcomplete'
   }
 
-  static get EVENT_CAMERA_PICTUREDATA() {
-    return 'event/camera/picturedata'
+  static get NOTIFICATION_DEVICE_WARNINGMOTORSTUCK() {
+    return 'device/warningmotorstuck'
   }
 
-  static get EVENT_RESPONSE_SUFFIX() {
-    return '/response'
+  static get NOTIFICATION_DEVICE_WARNINGNOFOOD() {
+    return 'device/warningnofood'
+  }
+
+  static get NOTIFICATION_CAMERA_H264DATA() {
+    return 'camera/h264data'
+  }
+
+  static get NOTIFICATION_CAMERA_PICTUREDATA() {
+    return 'camera/picturedata'
   }
 
   run() {
@@ -62,12 +76,29 @@ class TransportBase extends EventEmitter2 {
   }
 
   /**
-   * Emit an event for all connected users or one user with userId
-   * @param {String} event string as 'event/server/authRequest' for example
-   * @param {Object} data plain object in form of { userId, data }
+   * Sends notification for all users or for user with userId only
+   * Notifications has no request or response IDs
+   * @param {String} event Event string ID from TransportBase constants, for example TransportBase.EVENT_DEVICE_WARNINGNOFOOD
+   * @param {Object} data Plain data object
+   * @param {*} userId ID of the user to whom the message is addressed. If not specified - for all users
    */
-  emitEvent(event, data) {
-    throw new MethodNotImplementedException(this.constructor.name + ' should override this method')
+  notify(event, data, userId) {
+    throw new MethodNotImplementedException(
+      this.constructor.name + ' should override this method with return type of Promise'
+    )
+  }
+
+  /**
+   * Response on RPC request
+   * @param {*} userId ID of the user who made RPC request
+   * @param {Number} requestId ID of RPC request (provided by client on RPC request)
+   * @param {Object} data Plain data object
+   * @param {String} error Error message string. If specified, data argument will be ignored
+   */
+  response(userId, requestId, data, error) {
+    throw new MethodNotImplementedException(
+      this.constructor.name + ' should override this method with return type of Promise'
+    )
   }
 }
 
