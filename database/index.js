@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb')
 const path = require('path')
-const { nf } = require('../utilities/helpers')
+const { nf, readFile } = require('../utilities/helpers')
 const fs = require('fs')
 
 // Connection URL TODO: move to configuration
@@ -37,7 +37,13 @@ class DataBase {
   }
 
   static async getOrCreateCurrentPath() {
-    const dateUtc = new Date(Date.now())
+    const currentPath = DataBase.getPathByTimestamp(Date.now())
+    await DataBase._createPathIfNotExist(currentPath)
+    return currentPath
+  }
+
+  static getPathByTimestamp(timestamp) {
+    const dateUtc = new Date(timestamp)
     const currentPath = path.resolve(
       __dirname,
       DataBase.DATA_DIR_NAME,
@@ -46,7 +52,6 @@ class DataBase {
       nf(dateUtc.getUTCDate())
     )
 
-    await DataBase._createPathIfNotExist(currentPath)
     return currentPath
   }
 
@@ -225,6 +230,36 @@ class DataBase {
 
           resolve(galleryDates)
         })
+    })
+  }
+
+  static async getVideoThumbs(id) {
+    return new Promise((resolve, reject) => {
+      db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id }, (err, video) => {
+        if (err) return reject(err)
+        if (!video) return reject(new Error('Video with provided ID does not exist'))
+        if (video.state !== 2) return reject(new Error('Thumbnails not ready, please repeat request later'))
+
+        const dirPath = DataBase.getPathByTimestamp(video._id)
+        fs.readdir(dirPath, async (err, files) => {
+          if (err) return reject(err)
+
+          const regexp = new RegExp(`thumb-${video._id}-\\d+\\.png`)
+          const thumbFileNames = files.filter(fileName => regexp.test(fileName))
+          if (thumbFileNames.length === 0) return reject(new Error('No thumbnail files found'))
+
+          // read files TODO: huge response size here
+          // I don't care much about particular order of files here
+          const fileContents = []
+          for (const fileName of thumbFileNames) {
+            const filePath = path.resolve(dirPath, fileName)
+            const fileContent = await readFile(filePath)
+            fileContents.push(fileContent)
+          }
+
+          resolve(fileContents)
+        })
+      })
     })
   }
 }

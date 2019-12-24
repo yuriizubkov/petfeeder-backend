@@ -46,7 +46,7 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['getEvents', 'getGallery', 'getGalleryDates', 'getEventDates'],
+        methodsAllowed: ['getEvents', 'getGallery', 'getGalleryDates', 'getEventDates', 'getVideoThumbs'],
       },
       wifi: {
         objectToCall: null, // not implemented
@@ -314,8 +314,7 @@ class PetfeederServer {
 
     console.info(
       `[${utcDateString()}][SERVER] RPC response. ` +
-        `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${request.id}, Result:`,
-      result
+        `Transport: ${transportClass}, User ID: ${userId}, Request ID: ${request.id}`
     )
 
     try {

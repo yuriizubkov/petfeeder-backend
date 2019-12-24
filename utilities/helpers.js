@@ -1,4 +1,5 @@
 const { spawn } = require('child_process')
+const fs = require('fs')
 
 /**
  * Format number for propper string representation of time, hours or minutes, for example 0 -> '00'
@@ -41,8 +42,24 @@ function simpleSpawn(cmd, options) {
   })
 }
 
+/**
+ * Read whole file asynchronously and return its content
+ * @param {String} filePath Valid path to the file
+ * @returns {Promise}
+ */
+function readFile(filePath) {
+  return new Promise((resolve, reject) => {
+    let chunks = []
+    let stream = fs.createReadStream(filePath)
+    stream.on('error', err => reject(err))
+    stream.on('data', chunk => chunks.push(chunk))
+    stream.on('end', () => resolve(Buffer.concat(chunks)))
+  })
+}
+
 module.exports = {
   nf,
   utcDateString,
   simpleSpawn,
+  readFile,
 }
