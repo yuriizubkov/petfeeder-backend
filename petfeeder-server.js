@@ -622,11 +622,14 @@ class PetfeederServer {
     const { fileStream, fileSize } = await DB.getConvertedVideoFileStream(fileId)
     this._addFileDownloadStreamSubscriber(transportClass, userId, fileStream)
 
-    fileStream.on('data', async data => {
+    fileStream.on('data', async chunk => {
       await this.notify(TransportBase.NOTIFICATION_FILES_FILEDATA, {
         transportClass,
         userId,
-        data,
+        data: {
+          d: chunk,
+          fId: fileId,
+        },
       })
     })
 
@@ -634,7 +637,10 @@ class PetfeederServer {
       await this.notify(TransportBase.NOTIFICATION_FILES_FILEDATA, {
         transportClass,
         userId,
-        data: null, // to indicate end of transmission
+        data: {
+          d: null, // to indicate end of transmission
+          fId: fileId,
+        },
       })
 
       this._removeFileDownloadStreamSubscriber(transportClass, userId)
