@@ -262,6 +262,31 @@ class DataBase {
       })
     })
   }
+
+  static async getConvertedVideoFileStream(id) {
+    return new Promise((resolve, reject) => {
+      db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id }, (err, video) => {
+        if (err) return reject(err)
+        if (!video) return reject(new Error('Video with provided ID does not exist'))
+        if (video.state !== 1) return reject(new Error('Video is not converted yet, please try again later'))
+
+        const dirPath = DataBase.getPathByTimestamp(video._id)
+        fs.readdir(dirPath, async (err, files) => {
+          if (err) return reject(err)
+
+          const videoFileNames = files.filter(fileName => `video-${video._id}.mp4`)
+          if (videoFileNames.length === 0) return reject(new Error('No video files found'))
+
+          const filePath = path.resolve(dirPath, `video-${video._id}.mp4`)
+          const fileStat = fs.statSync(filePath)
+          resolve({
+            fileStream: fs.createReadStream(filePath),
+            fileSize: fileStat.size,
+          })
+        })
+      })
+    })
+  }
 }
 
 module.exports = DataBase

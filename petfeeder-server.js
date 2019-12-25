@@ -29,6 +29,7 @@ class PetfeederServer {
     this._hardwareButtonFeeding = false
     this._camera = null
     this._cameraStreamSubscribers = [] // { userId: 'id', transportClass: 'transportClassName', stream: cameraStreamInstance }
+    this._fileDownloadStreamSubscribers = [] // { userId: 'id', transportClass: 'transportClassName', stream: ReadableStream }
     this._transportList = {} // { 'transportClassName': transportInstance }
 
     for (let transportInstance of transports)
@@ -228,7 +229,7 @@ class PetfeederServer {
   }
 
   _getConnectedUser(transportClass, userId) {
-    return this._connectedUsers.filter(user => user.userId === userId && user.transportClass == transportClass)[0]
+    return this._connectedUsers.filter(user => user.userId === userId && user.transportClass === transportClass)[0]
   }
 
   _addConnectedUser(transportClass, userId) {
@@ -250,7 +251,7 @@ class PetfeederServer {
 
   _getCameraStreamSubscriber(transportClass, userId) {
     return this._cameraStreamSubscribers.filter(
-      user => user.userId === userId && user.transportClass == transportClass
+      user => user.userId === userId && user.transportClass === transportClass
     )[0]
   }
 
@@ -267,6 +268,31 @@ class PetfeederServer {
       const user = this._cameraStreamSubscribers[userIndex]
       if (user.userId === userId && user.transportClass === transportClass) {
         this._cameraStreamSubscribers.splice(userIndex, 1) // removing
+        break
+      }
+    }
+  }
+
+  _addFileDownloadStreamSubscriber(transportClass, userId, stream) {
+    this._fileDownloadStreamSubscribers.push({
+      transportClass,
+      userId,
+      stream,
+    })
+  }
+
+  _getFileDownloadStreamSubscriber(transportClass, userId) {
+    return this._fileDownloadStreamSubscribers.filter(
+      user => user.userId === userId && user.transportClass === transportClass
+    )[0]
+  }
+
+  _removeFileDownloadStreamSubscriber(transportClass, userId) {
+    for (const userIndex in this._fileDownloadStreamSubscribers) {
+      const user = this._fileDownloadStreamSubscribers[userIndex]
+      if (user.userId === userId && user.transportClass === transportClass) {
+        user.stream.destroy() // stop reading file
+        this._fileDownloadStreamSubscribers.splice(userIndex, 1) // removing
         break
       }
     }
@@ -413,6 +439,10 @@ class PetfeederServer {
     this._removeConnectedUser(transportClass, userId) // TODO: maybe we need only one list of users?
     // stop streaming video for this user
     if (this._getCameraStreamSubscriber(transportClass, userId)) await this.stopVideoStream(transportClass, userId)
+
+    // stop file transfer stream
+    this._removeFileDownloadStreamSubscriber(transportClass, userId)
+
     console.info(`[${utcDateString()}][SERVER] User disconnected. Transport: ${transportClass}, User ID: ${userId}`)
     // TODO: transfer control rights to next connected user
   }
@@ -425,8 +455,12 @@ class PetfeederServer {
    */
   async notify(event, eventOptions) {
     const { transportClass, userId, data } = eventOptions || {}
-    // Do not need output to console when transmitting camera data
-    if (event !== TransportBase.NOTIFICATION_CAMERA_H264DATA && event !== TransportBase.NOTIFICATION_CAMERA_PICTUREDATA)
+    // Do not need output to console when transmitting large data
+    if (
+      event !== TransportBase.NOTIFICATION_CAMERA_H264DATA &&
+      event !== TransportBase.NOTIFICATION_CAMERA_PICTUREDATA &&
+      event !== TransportBase.NOTIFICATION_DATABASE_FILEDATA
+    )
       console.info(
         `[${utcDateString()}][SERVER] Emitting event for Transport: ${transportClass || 'all'}, ` +
           `User: ${userId || 'all'}, Event: ${event}, Data:`,
@@ -577,6 +611,32 @@ class PetfeederServer {
     if (!this._camera) return Promise.resolve()
     await this._camera.stopRecording()
     console.info(`[${utcDateString()}][SERVER] Camera recording has been stopped`)
+  }
+
+  // TODO: In ideal case we need to limit amount of requests to this method from one user
+  async getVideoFile(transportClass, userId, fileId) {
+    const { fileStream, fileSize } = await DB.getConvertedVideoFileStream(fileId)
+    this._addFileDownloadStreamSubscriber(transportClass, userId, fileStream)
+
+    fileStream.on('data', async data => {
+      await this.notify(TransportBase.NOTIFICATION_DATABASE_FILEDATA, {
+        transportClass,
+        userId,
+        data,
+      })
+    })
+
+    fileStream.on('end', async () => {
+      await this.notify(TransportBase.NOTIFICATION_DATABASE_FILEDATA, {
+        transportClass,
+        userId,
+        data: null, // to indicate end of transmission
+      })
+
+      this._removeFileDownloadStreamSubscriber(transportClass, userId)
+    })
+
+    return fileSize // return fileSize to the user for displaying progress bar
   }
 
   /**

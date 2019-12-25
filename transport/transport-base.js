@@ -59,6 +59,10 @@ class TransportBase extends EventEmitter {
     return 'camera/picturedata'
   }
 
+  static get NOTIFICATION_DATABASE_FILEDATA() {
+    return 'database/filedata'
+  }
+
   run() {
     throw new MethodNotImplementedException(
       this.constructor.name + ' should override this method with return type of Promise'
