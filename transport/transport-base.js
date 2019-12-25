@@ -59,8 +59,8 @@ class TransportBase extends EventEmitter {
     return 'camera/picturedata'
   }
 
-  static get NOTIFICATION_DATABASE_FILEDATA() {
-    return 'database/filedata'
+  static get NOTIFICATION_FILES_FILEDATA() {
+    return 'files/filedata'
   }
 
   run() {

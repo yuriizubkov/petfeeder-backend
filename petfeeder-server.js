@@ -45,6 +45,10 @@ class PetfeederServer {
         objectToCall: this,
         methodsAllowed: ['startVideoStream', 'stopVideoStream', 'takePicture'],
       },
+      files: {
+        objectToCall: this,
+        methodsAllowed: ['getVideoFile'],
+      },
       database: {
         objectToCall: DB,
         methodsAllowed: ['getEvents', 'getGallery', 'getGalleryDates', 'getEventDates', 'getVideoThumbs'],
@@ -387,9 +391,9 @@ class PetfeederServer {
 
     // Executing RPC
     let result = null
-    if (resource === 'camera') {
+    if (resource === 'camera' || resource === 'files') {
       // passing caller info for camera methods
-      result = await this._validRpcResources[resource].objectToCall[method](transportClass, userId)
+      result = await this._validRpcResources[resource].objectToCall[method](transportClass, userId, ...request.args)
     } else {
       // all other requests
       result = await this._validRpcResources[resource].objectToCall[method](...request.args)
@@ -459,7 +463,7 @@ class PetfeederServer {
     if (
       event !== TransportBase.NOTIFICATION_CAMERA_H264DATA &&
       event !== TransportBase.NOTIFICATION_CAMERA_PICTUREDATA &&
-      event !== TransportBase.NOTIFICATION_DATABASE_FILEDATA
+      event !== TransportBase.NOTIFICATION_FILES_FILEDATA
     )
       console.info(
         `[${utcDateString()}][SERVER] Emitting event for Transport: ${transportClass || 'all'}, ` +
@@ -619,7 +623,7 @@ class PetfeederServer {
     this._addFileDownloadStreamSubscriber(transportClass, userId, fileStream)
 
     fileStream.on('data', async data => {
-      await this.notify(TransportBase.NOTIFICATION_DATABASE_FILEDATA, {
+      await this.notify(TransportBase.NOTIFICATION_FILES_FILEDATA, {
         transportClass,
         userId,
         data,
@@ -627,7 +631,7 @@ class PetfeederServer {
     })
 
     fileStream.on('end', async () => {
-      await this.notify(TransportBase.NOTIFICATION_DATABASE_FILEDATA, {
+      await this.notify(TransportBase.NOTIFICATION_FILES_FILEDATA, {
         transportClass,
         userId,
         data: null, // to indicate end of transmission
