@@ -268,7 +268,7 @@ class DataBase {
       db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id }, (err, video) => {
         if (err) return reject(err)
         if (!video) return reject(new Error('Video with provided ID does not exist'))
-        if (video.state !== 1) return reject(new Error('Video is not converted yet, please try again later'))
+        if (video.state < 1) return reject(new Error('Video is not converted yet, please try again later'))
 
         const dirPath = DataBase.getPathByTimestamp(video._id)
         fs.readdir(dirPath, async (err, files) => {
