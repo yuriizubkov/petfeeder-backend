@@ -51,7 +51,14 @@ class PetfeederServer {
       },
       database: {
         objectToCall: DB,
-        methodsAllowed: ['getEvents', 'getGallery', 'getGalleryDates', 'getEventDates', 'getVideoThumbs'],
+        methodsAllowed: [
+          'getEvents',
+          'getGallery',
+          'removeGalleryEntry',
+          'getGalleryDates',
+          'getEventDates',
+          'getVideoThumbs',
+        ],
       },
       wifi: {
         objectToCall: null, // not implemented
@@ -297,7 +304,7 @@ class PetfeederServer {
       if (user.userId === userId && user.transportClass === transportClass) {
         user.stream.destroy() // stop reading file
         this._fileDownloadStreamSubscribers.splice(userIndex, 1) // removing
-        // don't break here, we can file multiple downloads from one user
+        // don't break here, we can have multiple downloads from one user
       }
     }
   }

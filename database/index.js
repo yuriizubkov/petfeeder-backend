@@ -1,6 +1,6 @@
 const { MongoClient } = require('mongodb')
 const path = require('path')
-const { nf, readFile } = require('../utilities/helpers')
+const { nf, readFile, unlinkFilesInDir, getFileNamesByRegexp } = require('../utilities/helpers')
 const fs = require('fs')
 
 // Connection URL TODO: move to configuration
@@ -128,6 +128,30 @@ class DataBase {
     })
   }
 
+  static async removeGalleryEntry(id) {
+    const video = await db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id })
+    if (!video) throw new Error('Video with provided ID does not exist')
+    if (video.state === -1) throw new Error('This video has been already marked for removing')
+
+    // mark for removing
+    await db.collection(DataBase.COLLECTION_GALLERY).updateOne(
+      { _id: id },
+      {
+        $set: {
+          state: -1,
+        },
+      }
+    )
+
+    const dirPath = DataBase.getPathByTimestamp(video._id)
+    const regexp = new RegExp(`\\w+-${video._id}`)
+    const fileNames = await getFileNamesByRegexp(regexp, dirPath)
+    await unlinkFilesInDir(fileNames, dirPath)
+
+    // finally remove document from the database
+    await db.collection(DataBase.COLLECTION_GALLERY).remove({ _id: video._id }, true) // remove one doc
+  }
+
   static getEvents(year, month, date) {
     return new Promise((resolve, reject) => {
       const utcTime = Date.UTC(year, month - 1, date)
@@ -156,7 +180,9 @@ class DataBase {
       const fromTimestamp = utcTime
       const toTimestamp = utcTime + 24 * 3600000 // + 24hrs in milliseconds
       db.collection(DataBase.COLLECTION_GALLERY)
-        .find({ _id: { $gte: fromTimestamp, $lt: toTimestamp } }) // (_id >= fromTimestamp && _id < toTimestamp)
+        .find({
+          $and: [{ _id: { $gte: fromTimestamp, $lt: toTimestamp } }, { state: { $ne: -1 } }],
+        }) // (_id >= fromTimestamp && _id < toTimestamp) and state is not -1 (not market to be removed)
         .toArray((err, docs) => {
           if (err) return reject(err)
           const events = docs.map(value => {
@@ -206,7 +232,7 @@ class DataBase {
     return new Promise((resolve, reject) => {
       const galleryDates = {}
       db.collection(DataBase.COLLECTION_GALLERY)
-        .find({}, ['_id'])
+        .find({ state: { $ne: -1 } }, ['_id']) // all not marked to be removed
         .toArray((err, docs) => {
           if (err) return reject(err)
           for (const doc of docs) {
@@ -238,6 +264,7 @@ class DataBase {
       db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id }, (err, video) => {
         if (err) return reject(err)
         if (!video) return reject(new Error('Video with provided ID does not exist'))
+        if (video.state === -1) return reject(new Error('This video has been marked for removing'))
         if (video.state !== 2) return reject(new Error('Thumbnails not ready, please repeat request later'))
 
         const dirPath = DataBase.getPathByTimestamp(video._id)
@@ -268,16 +295,18 @@ class DataBase {
       db.collection(DataBase.COLLECTION_GALLERY).findOne({ _id: id }, (err, video) => {
         if (err) return reject(err)
         if (!video) return reject(new Error('Video with provided ID does not exist'))
+        if (video.state === -1) return reject(new Error('This video has been marked for removing'))
         if (video.state < 1) return reject(new Error('Video is not converted yet, please try again later'))
 
         const dirPath = DataBase.getPathByTimestamp(video._id)
         fs.readdir(dirPath, async (err, files) => {
           if (err) return reject(err)
 
-          const videoFileNames = files.filter(fileName => `video-${video._id}.mp4`)
+          const videoFileNames = files.filter(fileName => fileName === `video-${video._id}.mp4`)
           if (videoFileNames.length === 0) return reject(new Error('No video files found'))
 
           const filePath = path.resolve(dirPath, `video-${video._id}.mp4`)
+          // yeah, cheesy sync piece of code here
           const fileStat = fs.statSync(filePath)
           resolve({
             fileStream: fs.createReadStream(filePath),

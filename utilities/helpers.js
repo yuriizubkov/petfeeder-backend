@@ -1,5 +1,6 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
+const path = require('path')
 
 /**
  * Format number for propper string representation of time, hours or minutes, for example 0 -> '00'
@@ -57,9 +58,57 @@ function readFile(filePath) {
   })
 }
 
+/**
+ * Removing file
+ * @param {String} filePath
+ */
+function unlinkFile(filePath) {
+  return new Promise((resolve, reject) => {
+    fs.access(filePath, fs.constants.F_OK, err => {
+      if (err) return reject(new Error('File does not exist'))
+    })
+
+    fs.unlink(filePath, err => {
+      if (err) return reject(err)
+      resolve()
+    })
+  })
+}
+
+/**
+ * Removing multiple files in directory
+ * @param {Array} fileNames file names (without dir path) as array of strings
+ * @param {String} dirPath path to directory as string
+ */
+async function unlinkFilesInDir(fileNames, dirPath) {
+  const promises = []
+  for (const fileName of fileNames) promises.push(unlinkFile(path.resolve(dirPath, fileName)))
+
+  await Promise.all(promises)
+}
+
+/**
+ * Getting file names from desired directory and test them on RegExp
+ * @param {RegExp} regexp RegExp instance
+ * @param {String} dirPath
+ */
+async function getFileNamesByRegexp(regexp, dirPath) {
+  return new Promise((resolve, reject) => {
+    fs.readdir(dirPath, (err, files) => {
+      if (err) return reject(err)
+
+      const fileNames = files.filter(fileName => regexp.test(fileName))
+      resolve(fileNames)
+    })
+  })
+}
+
 module.exports = {
   nf,
   utcDateString,
   simpleSpawn,
   readFile,
+  unlinkFile,
+  unlinkFilesInDir,
+  getFileNamesByRegexp,
 }
