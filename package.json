@@ -1,8 +1,11 @@
 {
   "name": "petfeeder-backend",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "API server for the smart pet feeder",
   "main": "index.js",
+  "private": true,
+  "author": "Yurii Zubkov",
+  "license": "GPL-3.0-or-later",
   "scripts": {
     "start": "export NODE_ENV=production && node index.js",
     "dev": "export NODE_ENV=development && node index.js"
@@ -17,8 +20,6 @@
     "alternative",
     "firmware"
   ],
-  "author": "Yurii Zubkov",
-  "license": "GPL-3.0-or-later",
   "dependencies": {
     "connect-history-api-fallback": "^1.6.0",
     "express": "^4.17.1",

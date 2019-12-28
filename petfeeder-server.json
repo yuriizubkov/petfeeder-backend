@@ -8,12 +8,10 @@
   },
   "camera": {
     "video": {
-      "colfx": "128:128",
       "vflip": true
     },
     "photo": {
       "quality": 75,
-      "colfx": "128:128",
       "vflip": true
     }
   }
