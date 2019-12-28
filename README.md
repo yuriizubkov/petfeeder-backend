@@ -114,6 +114,7 @@ Can be found on _petfeeder-server.json_
   Start video on 2nd window - got video stream</br>
   Start video on 1st window - got video stream</br>
 - If server starts recording when user watching stream from the camera - recorded video file is corrupted, without NAL headers (same issue with piped streams as issue above)
+- _rpio_ module sometimes throwing an error on startup. Just restart server again (PM2 will do it for you).
 
 So yes, still have plenty of work here. I will fix that in next versions. Feel free to open issue if you find something else.
 
