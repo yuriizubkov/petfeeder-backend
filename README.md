@@ -102,7 +102,7 @@ Can be found on _petfeeder-server.json_
 - Server can stream (to multiple users simultaneously) and record at the same time (that is why we need raw stream without re-encoding, to get good performance on Raspberry Pi)
 - "Link LED" on the front panel of the Petwant PF-103 is reserved for indication of link with some internet service. Not in use now, not implemented yet.
 
-## Knowning issues
+## Known issues
 
 - Different users has ability to edit schedule at the same time. So keep that in mind. That will be fixed in next version.
 - Video streaming has a bug, second connected user can't get video stream. How to reproduce this bug:</br>
