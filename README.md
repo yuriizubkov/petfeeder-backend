@@ -119,3 +119,7 @@ Can be found on _petfeeder-server.json_
 So yes, still have plenty of work here. I will fix that in next versions. Feel free to open issue if you find something else.
 
 Have fun hacking and happy hollydays! (2019.12.28)
+
+## Actual Roadmap
+
+https://trello.com/b/OsnPAaWg/petfeeder
