@@ -27,7 +27,7 @@
     "mdns": "^2.5.1",
     "mongodb": "~3",
     "petwant-device": "^1.0.5",
-    "socket.io": "^2.4.0",
+    "socket.io": "^2.5.0",
     "stream-split": "^1.1.0"
   }
 }
